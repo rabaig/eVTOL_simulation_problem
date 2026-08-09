@@ -1,0 +1,19 @@
+# Build output
+build/
+cmake-build-*/
+*.o
+*.a
+*.so
+*.exe
+
+# Qt Creator
+CMakeLists.txt.user*
+*.pro.user*
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Cowork session artifact
+attachments.html
