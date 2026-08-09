@@ -123,10 +123,22 @@ cd eVTOL_simulation_problem
 cmake -S . -B build
 cmake --build build
 
-./build/evtol_sim              # random seed
-./build/evtol_sim --seed 42    # reproducible
-./build/tests
+./build/bin/evtol_sim              # random seed
+./build/bin/evtol_sim --seed 42    # reproducible
+./build/bin/tests
 ```
+
+Needs CMake 3.16 or newer and a compiler with C++17. No external dependencies, nothing to fetch, no submodules.
+
+Layout:
+
+```
+include/evtol/   public headers
+src/             implementation
+tests/           unit tests and the harness they run in
+docs/            problem statement and development plan
+```
+
 
 ## Sample run
 
