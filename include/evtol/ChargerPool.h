@@ -6,14 +6,13 @@
 #include <optional>
 #include <vector>
 
+#include "evtol/Types.h"
+
 namespace evtol {
 
-/// Identifies one vehicle. Just an index into the simulation's fleet.
-///
-/// The pool deliberately knows nothing about vehicles beyond this number. It
-/// doesn't need their speed or battery, and keeping it that way means it can
-/// be tested with plain integers.
-using VehicleId = int;
+// The pool deliberately knows nothing about vehicles beyond their VehicleId.
+// It doesn't need their speed or battery, and keeping it that way means it
+// can be tested with plain integers.
 
 /// The problem gives three chargers for the whole fleet of twenty.
 constexpr std::size_t kDefaultChargerCount = 3;
