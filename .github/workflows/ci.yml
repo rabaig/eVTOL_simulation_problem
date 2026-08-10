@@ -1,0 +1,39 @@
+name: build and test
+
+# Runs on every push and every pull request. The point is that a broken build
+# or a failing test shows up on the PR before a reviewer opens it.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    name: ${{ matrix.os }} / ${{ matrix.build_type }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      # Don't cancel the other jobs when one fails. If a change breaks Release
+      # but not Debug, that's worth knowing in the same run.
+      fail-fast: false
+      matrix:
+        # Two compilers, since the code is meant to be portable and gcc and
+        # clang disagree about plenty of warnings.
+        os: [ubuntu-latest, macos-latest]
+
+        # Both build types on purpose. assert() compiles away in Release, so
+        # the two configurations are running genuinely different code and a
+        # Release-only problem would otherwise go unnoticed.
+        build_type: [Debug, Release]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
