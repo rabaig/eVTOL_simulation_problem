@@ -9,7 +9,7 @@ add_executable(tests
 
 target_link_libraries(tests PRIVATE evtol_core)
 
-# So test helpers can be included by name: "TestHarness.h", "StubRng.h".
+# So test helpers can be included by name: "TestHarness.h", "test_rng.h".
 target_include_directories(tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_test(NAME unit_tests COMMAND tests)

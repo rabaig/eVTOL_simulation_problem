@@ -1,5 +1,7 @@
 # eVTOL Fleet Simulation
 
+[![build and test](https://github.com/rabaig/eVTOL_simulation_problem/actions/workflows/ci.yml/badge.svg)](https://github.com/rabaig/eVTOL_simulation_problem/actions/workflows/ci.yml)
+
 C++ simulation of a fleet of electric air taxis sharing a small number of chargers.
 
 ## What this is

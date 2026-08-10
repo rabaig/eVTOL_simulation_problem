@@ -45,6 +45,7 @@ The body is for the reasoning, not a restatement of the diff. If a commit involv
 | EVTOL-6 | `feature/EVTOL-6-fault-model` | 5 |
 | EVTOL-7 | `feature/EVTOL-7-statistics` | 5 |
 | EVTOL-8 | `feature/EVTOL-8-reporting-and-docs` | 6, 7 |
+| EVTOL-9 | `chore/EVTOL-9-continuous-integration` | 1 |
 
 ---
 
@@ -54,9 +55,13 @@ Get a project that builds and runs tests before writing any simulation logic, so
 
 CMake with two targets, the simulation binary and the test binary. Directory layout is `src/`, `include/`, `tests/`, `docs/`. Tests use a small hand-rolled assertion harness rather than pulling in GoogleTest, to keep the repo free of submodules and dependency setup. The problem says a framework isn't required.
 
-This ticket also introduces the `Rng` interface and a seedable Mersenne Twister implementation behind it. It belongs here rather than with the fault model because two separate things need randomness (fleet composition and faults), and because putting the seam in from the start is what makes everything downstream deterministically testable. Retrofitting it later would mean touching every class again.
+This ticket also introduces `Rng`, a seedable wrapper over `std::mt19937`. It belongs here rather than with the fault model because two separate things need randomness (fleet composition and faults) and both should share one seed. Seeding is what makes a run reproducible, which is what makes the sample output in the README worth committing.
 
-Done when: `cmake --build build` produces both binaries, `./build/tests` runs and passes a placeholder assertion, and a test can inject a stub `Rng` that returns a fixed sequence.
+Done when: `cmake --build build` produces both binaries, `./build/bin/tests` runs and passes, and the same seed demonstrably produces the same sequence.
+
+> **Changed during the ticket.** `Rng` started as an interface with a `StubRng` test double behind it, so that fault tests could assert exact values against a scripted sequence. That's the textbook approach and it works, but it costs a class, a virtual call and a concept that has to be explained, and this project is small enough that fixed seeds cover the same ground. Dropped it in the second commit on the branch. The trade is real and worth naming: tests now assert on recorded output rather than hand-computed values, so they catch change rather than proving correctness.
+>
+> The same reasoning removed the planned `FaultModel` interface in EVTOL-6.
 
 ---
 
@@ -112,11 +117,13 @@ Done when: a seeded run is reproducible, the fleet always totals 20, no more tha
 
 Faults, as a continuous process rather than an hourly coin flip.
 
-`FaultModel` is an interface; `PoissonFaultModel` samples the next fault time as `-ln(U)/λ` with λ taken from the type's hourly probability. Faults are scheduled as events like anything else and only accrue while a vehicle is airborne. A fault increments a counter and the flight continues.
+`FaultModel` samples the next fault time as `-ln(U)/λ`, with λ taken from the type's hourly probability. Faults are scheduled as events like anything else and only accrue while a vehicle is airborne. A fault increments a counter and the flight continues.
 
-Splitting the interface from the implementation is mostly for testing. A stub that returns a fixed schedule turns fault assertions into exact equality checks instead of statistical ones, which matters when a single 3-hour run is far too small a sample to test against a distribution.
+`uniform01()` returns values in `[0, 1)`, so zero can come back and the logarithm has to be fed `1 - u` rather than `u` directly. Small detail, but it's an infinity if it's missed.
 
-Done when: fault counts are exact with a stubbed model, faults during charging don't fire, and a long-run sanity check over many hours lands near the expected rate.
+Testing this without a stub takes a bit more care. Fault counts come from a fixed seed and are asserted against recorded output, which catches regressions but doesn't prove correctness on its own. The correctness argument is the long-run check: over enough simulated hours the observed rate has to converge on λ, and that test is doing the real work.
+
+Done when: a seeded run reproduces its fault counts exactly, faults don't fire while charging or queued, and a long-run rate check lands near the expected value.
 
 ---
 
@@ -141,6 +148,18 @@ Output, and everything needed to hand it over.
 The last part of this ticket is a pass back over the README to make sure the assumptions section matches what the code actually does, and that the TODOs are the ones still outstanding rather than ones already handled along the way.
 
 Done when: output is readable and aligned, `--seed 42` gives identical output on repeated runs, and the README contains a real run.
+
+---
+
+### EVTOL-9 — Continuous integration
+
+Every push and pull request builds on Linux and macOS, in Debug and Release, and runs the tests.
+
+Both build types on purpose: `assert` compiles away in Release, so the two configurations are running genuinely different code and a Release-only failure would otherwise sit unnoticed. Two platforms because gcc and clang disagree about enough warnings to be worth catching.
+
+Added later than it should have been. It belongs next to EVTOL-1 and would have caught a broken build before a reviewer did rather than after.
+
+Done when: the badge is green on `main` and every PR shows its own result.
 
 ---
 
