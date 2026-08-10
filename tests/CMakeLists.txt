@@ -4,6 +4,7 @@
 add_executable(tests
     test_main.cpp
     TestHarness.cpp
+    test_aircraft.cpp
     test_rng.cpp
 )
 

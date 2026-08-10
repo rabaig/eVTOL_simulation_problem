@@ -1,6 +1,7 @@
 #include <cstdio>
 
 #include "TestHarness.h"
+#include "test_aircraft.h"
 #include "test_rng.h"
 
 // Every test is listed here by hand. Adding one means writing the function,
@@ -20,6 +21,15 @@ int main() {
     RUN(uniformInt_can_return_both_ends_of_the_range);
     RUN(uniformInt_handles_a_range_of_one);
     RUN(seed_survives_construction);
+
+    RUN(specs_match_the_problem_statement_table);
+    RUN(power_draw_is_energy_per_mile_times_cruise_speed);
+    RUN(flight_time_matches_hand_calculation);
+    RUN(range_matches_hand_calculation);
+    RUN(passenger_miles_matches_the_worked_example);
+    RUN(lookup_returns_the_matching_company);
+    RUN(alpha_and_delta_cannot_finish_two_flights_in_three_hours);
+    RUN(charlie_spends_longer_charging_than_flying);
 
     return summary();
 }
