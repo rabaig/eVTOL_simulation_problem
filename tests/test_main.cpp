@@ -2,6 +2,7 @@
 
 #include "TestHarness.h"
 #include "test_aircraft.h"
+#include "test_charger_pool.h"
 #include "test_rng.h"
 
 // Every test is listed here by hand. Adding one means writing the function,
@@ -30,6 +31,15 @@ int main() {
     RUN(lookup_returns_the_matching_company);
     RUN(alpha_and_delta_cannot_finish_two_flights_in_three_hours);
     RUN(charlie_spends_longer_charging_than_flying);
+
+    RUN(chargers_are_granted_while_any_are_free);
+    RUN(requests_beyond_capacity_join_the_queue);
+    RUN(releasing_hands_the_charger_to_the_longest_waiter);
+    RUN(releasing_with_an_empty_queue_leaves_a_charger_idle);
+    RUN(queue_preserves_arrival_order);
+    RUN(a_fleet_smaller_than_the_pool_never_queues);
+    RUN(a_vehicle_can_come_back_for_another_charge);
+    RUN(capacity_is_never_exceeded_under_churn);
 
     return summary();
 }

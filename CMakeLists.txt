@@ -30,6 +30,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 # recompile every source file or find a way around main().
 add_library(evtol_core
     src/Aircraft.cpp
+    src/ChargerPool.cpp
     src/Rng.cpp
 )
 

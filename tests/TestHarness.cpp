@@ -13,15 +13,25 @@ int failureCount = 0;
 void reportFailure(const char* file, int line, const std::string& what) {
     ++failureCount;
     std::printf("      %s:%d  %s\n", file, line, what.c_str());
+
+    // Flush immediately. A failing check often leaves the code under test in
+    // a state that trips an assert a few lines later, and abort() discards
+    // whatever is still sitting in the stdout buffer. Without this you get a
+    // core dump and no indication of which check went wrong first, which is
+    // exactly the information you need.
+    std::fflush(stdout);
 }
 
 void runTest(const char* name, void (*fn)()) {
     failureCount = 0;
     ++testsRun;
 
-    // Name goes out before the test runs, so a crash still tells you which
-    // test caused it.
+    // Name goes out before the test runs, and is flushed for the same reason
+    // as above: if the test aborts, this line is the only clue as to which
+    // one it was.
     std::printf("  %s\n", name);
+    std::fflush(stdout);
+
     fn();
 
     if (failureCount > 0) {
