@@ -4,6 +4,7 @@
 #include "test_aircraft.h"
 #include "test_charger_pool.h"
 #include "test_rng.h"
+#include "test_vehicle.h"
 
 // Every test is listed here by hand. Adding one means writing the function,
 // declaring it in the matching header, and adding a line below. Slightly more
@@ -40,6 +41,15 @@ int main() {
     RUN(a_fleet_smaller_than_the_pool_never_queues);
     RUN(a_vehicle_can_come_back_for_another_charge);
     RUN(capacity_is_never_exceeded_under_churn);
+
+    RUN(vehicles_start_airborne_on_a_full_battery);
+    RUN(the_transition_table_allows_only_the_real_cycle);
+    RUN(a_full_cycle_returns_to_flight);
+    RUN(a_free_charger_skips_the_queue);
+    RUN(totals_only_count_completed_periods);
+    RUN(several_cycles_accumulate);
+    RUN(partial_flight_distance_is_available_for_passenger_miles);
+    RUN(faults_accumulate_across_flights);
 
     return summary();
 }
