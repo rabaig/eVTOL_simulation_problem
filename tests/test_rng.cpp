@@ -1,16 +1,12 @@
-#include "StubRng.h"
+#include "test_rng.h"
+
 #include "TestHarness.h"
-#include "evtol/MersenneRng.h"
+#include "evtol/Rng.h"
 
-#include <vector>
+namespace evtol::test {
 
-namespace {
-
-using evtol::MersenneRng;
-using evtol::test::StubRng;
-
-TEST(uniform01_stays_in_the_half_open_unit_range) {
-    MersenneRng rng(1234);
+void uniform01_stays_between_zero_and_one() {
+    Rng rng(1234);
 
     // Enough draws to have a fair chance of catching a boundary mistake.
     for (int i = 0; i < 10000; ++i) {
@@ -20,21 +16,23 @@ TEST(uniform01_stays_in_the_half_open_unit_range) {
     }
 }
 
-TEST(same_seed_gives_the_same_sequence) {
-    MersenneRng first(42);
-    MersenneRng second(42);
+void same_seed_gives_the_same_sequence() {
+    // This is the property the whole reproducibility story rests on. If it
+    // ever stops holding, the sample run in the README stops being checkable.
+    Rng first(42);
+    Rng second(42);
 
     for (int i = 0; i < 100; ++i) {
         CHECK_EQ(first.uniform01(), second.uniform01());
     }
 }
 
-TEST(different_seeds_diverge) {
-    MersenneRng first(1);
-    MersenneRng second(2);
+void different_seeds_give_different_sequences() {
+    Rng first(1);
+    Rng second(2);
 
-    // Any single draw could collide by chance, so look for at least one
-    // difference across a run rather than asserting on the first value.
+    // Any single draw could match by chance, so look for one difference
+    // across a run rather than asserting on the first value.
     bool sawDifference = false;
     for (int i = 0; i < 100; ++i) {
         if (first.uniform01() != second.uniform01()) {
@@ -45,8 +43,8 @@ TEST(different_seeds_diverge) {
     CHECK(sawDifference);
 }
 
-TEST(uniformInt_includes_both_bounds) {
-    MersenneRng rng(7);
+void uniformInt_can_return_both_ends_of_the_range() {
+    Rng rng(7);
 
     bool sawLow = false;
     bool sawHigh = false;
@@ -60,60 +58,27 @@ TEST(uniformInt_includes_both_bounds) {
         if (value == 4) sawHigh = true;
     }
 
-    // With 1000 draws over 5 values, missing an endpoint means the range is
-    // wrong, not that we got unlucky.
+    // 1000 draws over 5 values. Missing an endpoint means the range is wrong,
+    // not that we got unlucky.
     CHECK(sawLow);
     CHECK(sawHigh);
 }
 
-TEST(uniformInt_with_a_single_value_range_returns_it) {
-    MersenneRng rng(7);
+void uniformInt_handles_a_range_of_one() {
+    Rng rng(7);
 
-    // The fleet split hits this when four of the five types are already
-    // allocated and the remainder has nowhere else to go.
+    // The fleet split hits this when four types are allocated and whatever
+    // is left has nowhere else to go.
     for (int i = 0; i < 10; ++i) {
         CHECK_EQ(rng.uniformInt(3, 3), 3);
     }
 }
 
-TEST(seed_is_readable_after_construction) {
-    // Entropy-seeded runs print their seed so an interesting result can be
-    // reproduced. That only works if the seed survives construction.
-    MersenneRng rng(99);
+void seed_survives_construction() {
+    // Entropy-seeded runs print their seed so a good result can be repeated.
+    // That only works if the seed is still readable afterwards.
+    Rng rng(99);
     CHECK_EQ(rng.seed(), 99u);
 }
 
-TEST(stub_returns_the_scripted_sequence) {
-    StubRng rng({0.1, 0.2, 0.3});
-
-    CHECK_NEAR(rng.uniform01(), 0.1, 1e-12);
-    CHECK_NEAR(rng.uniform01(), 0.2, 1e-12);
-    CHECK_NEAR(rng.uniform01(), 0.3, 1e-12);
-}
-
-TEST(stub_cycles_once_the_script_runs_out) {
-    StubRng rng({0.25, 0.75});
-
-    CHECK_NEAR(rng.uniform01(), 0.25, 1e-12);
-    CHECK_NEAR(rng.uniform01(), 0.75, 1e-12);
-    CHECK_NEAR(rng.uniform01(), 0.25, 1e-12);
-    CHECK_NEAR(rng.uniform01(), 0.75, 1e-12);
-
-    CHECK_EQ(rng.realCalls(), std::size_t{4});
-}
-
-TEST(stub_serves_reals_and_ints_from_separate_scripts) {
-    // Fleet composition draws ints and the fault model draws reals. If they
-    // shared a cursor, adding a fault would shift the fleet split and every
-    // test that depends on both would become order sensitive.
-    StubRng rng({0.5}, {2, 3});
-
-    CHECK_EQ(rng.uniformInt(0, 4), 2);
-    CHECK_NEAR(rng.uniform01(), 0.5, 1e-12);
-    CHECK_EQ(rng.uniformInt(0, 4), 3);
-
-    CHECK_EQ(rng.realCalls(), std::size_t{1});
-    CHECK_EQ(rng.intCalls(), std::size_t{2});
-}
-
-}  // namespace
+}  // namespace evtol::test

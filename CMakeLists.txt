@@ -29,7 +29,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 # the test binary can link against it. Otherwise tests would either have to
 # recompile every source file or find a way around main().
 add_library(evtol_core
-    src/MersenneRng.cpp
+    src/Rng.cpp
 )
 
 target_include_directories(evtol_core PUBLIC
