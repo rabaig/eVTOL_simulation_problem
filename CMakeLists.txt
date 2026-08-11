@@ -32,6 +32,7 @@ add_library(evtol_core
     src/Aircraft.cpp
     src/ChargerPool.cpp
     src/Rng.cpp
+    src/Simulation.cpp
     src/Vehicle.cpp
 )
 

@@ -4,6 +4,7 @@
 #include "test_aircraft.h"
 #include "test_charger_pool.h"
 #include "test_rng.h"
+#include "test_simulation.h"
 #include "test_vehicle.h"
 
 // Every test is listed here by hand. Adding one means writing the function,
@@ -50,6 +51,16 @@ int main() {
     RUN(several_cycles_accumulate);
     RUN(partial_flight_distance_is_available_for_passenger_miles);
     RUN(faults_accumulate_across_flights);
+
+    RUN(simultaneous_events_come_out_in_the_order_they_were_scheduled);
+    RUN(the_fleet_always_totals_the_configured_size);
+    RUN(the_same_seed_reproduces_the_run);
+    RUN(the_charger_limit_is_never_exceeded);
+    RUN(every_hour_of_every_vehicle_is_accounted_for);
+    RUN(a_lone_vehicle_never_waits);
+    RUN(twenty_vehicles_on_three_chargers_do_wait);
+    RUN(alpha_completes_exactly_one_flight_in_three_hours);
+    RUN(a_longer_run_produces_more_flights);
 
     return summary();
 }
