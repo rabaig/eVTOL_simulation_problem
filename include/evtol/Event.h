@@ -10,7 +10,8 @@ namespace evtol {
 /// Something that happens to one vehicle at a known time.
 enum class EventType {
     FlightComplete,  ///< Battery empty. Vehicle wants a charger.
-    ChargeComplete   ///< Charge finished. Vehicle takes off again.
+    ChargeComplete,  ///< Charge finished. Vehicle takes off again.
+    Fault            ///< Something went wrong in the air. Counted, not acted on.
 };
 
 /// A scheduled event.
