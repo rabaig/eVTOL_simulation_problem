@@ -7,6 +7,7 @@ add_executable(tests
     test_aircraft.cpp
     test_charger_pool.cpp
     test_fault_model.cpp
+    test_reporter.cpp
     test_rng.cpp
     test_simulation.cpp
     test_statistics.cpp

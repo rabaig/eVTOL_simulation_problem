@@ -131,7 +131,9 @@ Done when: a seeded run reproduces its fault counts exactly, faults don't fire w
 
 Collecting the five required numbers, per type rather than per aircraft.
 
-`StatsCollector` accumulates completed flights, completed charge sessions, faults and passenger-miles for each type. It listens to the same events the simulation already emits rather than having the simulation call it explicitly, so adding a statistic later doesn't mean editing the event handlers.
+`collectStatistics()` folds a finished fleet into the five figures, grouped by manufacturer.
+
+> **Changed during the ticket.** This was planned as a `StatsCollector` class subscribing to the events the simulation emits. It ended up as a plain function, because by this point vehicles already accumulate their own totals as transitions happen — so there is no state left for a collector to keep and nothing to subscribe to. An observer would have been machinery wrapped around a `for` loop.
 
 Two things need care here. Flights and charge sessions still in progress when the clock stops are excluded from the averages, because counting a truncated flight would drag the average below what the aircraft can actually do. The miles flown during those partial flights still count, since they happened. And a type with zero vehicles has to report as not-applicable rather than dividing by zero, which the random fleet split makes a real possibility.
 
@@ -167,4 +169,16 @@ Done when: the badge is green on `main` and every PR shows its own result.
 
 Tag `v1.0` on `main` once EVTOL-8 merges.
 
-The history at that point should show eight merge commits on `main`, each one a ticket, with the work inside each visible underneath. Anyone reading it should be able to follow the order the design was built in without reading the code first.
+The history at that point should show a merge commit per ticket, with the work inside each visible underneath. Anyone reading it should be able to follow the order the design was built in without reading the code first.
+
+---
+
+## Looking back
+
+All nine landed. Three things are worth recording, since the point of writing a plan down is being able to see afterwards where it was wrong.
+
+**Two designs got simpler than planned.** `Rng` and `FaultModel` were both specified as interfaces with test doubles behind them — the textbook approach, and it does buy exact assertions. Both were dropped for concrete classes and fixed seeds. The trade is real and named in each section above: tests now largely catch change rather than proving correctness, and the gap is covered by long-run convergence checks and by a second generator on the same seed recovering the exact draw where the result is a pure function of one.
+
+**CI arrived far too late.** EVTOL-9 should have been EVTOL-1.5. Every PR before it merged without anything checking it built on a second compiler.
+
+**The tests that mattered most were the ones written to fail.** Every ticket was checked by deliberately breaking the code, and twice that found problems the passing tests could not have: a harness that discarded its output when a test aborted, and a tie-break test that passed with the tie-break deleted because libstdc++ happens not to reorder three equal elements. Both would have shipped looking tested.

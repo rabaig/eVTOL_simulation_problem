@@ -4,6 +4,7 @@
 #include "test_aircraft.h"
 #include "test_charger_pool.h"
 #include "test_fault_model.h"
+#include "test_reporter.h"
 #include "test_rng.h"
 #include "test_simulation.h"
 #include "test_statistics.h"
@@ -80,6 +81,12 @@ int main() {
     RUN(passenger_miles_credit_a_flight_still_in_the_air);
     RUN(passenger_miles_reproduce_the_worked_example);
     RUN(totals_add_back_up_to_the_whole_fleet);
+
+    RUN(the_report_lists_every_company);
+    RUN(the_report_records_the_seed);
+    RUN(an_absent_type_prints_a_dash_not_a_zero);
+    RUN(the_numbers_in_the_report_match_the_statistics);
+    RUN(the_report_is_identical_for_the_same_seed);
 
     return summary();
 }
