@@ -75,7 +75,9 @@ Given to us: everyone starts fully charged, aircraft hit cruise speed instantly 
 
 The rest I decided on:
 
-**Faults use a Poisson process.** "Probability of fault per hour" reads like a coin flip once an hour, but almost none of these flights are a whole number of hours, so that doesn't work cleanly. I treat it as a continuous process with rate λ and sample the next fault time as `-ln(U)/λ`. Handles partial hours properly and drops straight into the event queue.
+**Faults use a Poisson process.** "Probability of fault per hour" reads like a coin flip once an hour, but almost none of these flights are a whole number of hours — Charlie's is 37 minutes — so that doesn't work cleanly. I treat it as a continuous process with rate λ and sample the next gap as `-ln(1 - u)/λ`, with `u` uniform in `[0, 1)`. Handles partial hours properly and drops straight into the event queue.
+
+The `1 - u` rather than `u` matters: `u` can come back as exactly zero, and `ln(0)` is negative infinity.
 
 **Faults only happen in flight.** An aircraft sitting on a charger isn't flying, so it isn't accumulating risk. If faults ticked over during all wall clock time instead, every type would end up with roughly the same count regardless of how much it actually flew, which would make the statistic useless.
 
@@ -85,7 +87,7 @@ The rest I decided on:
 
 **Charger queue is FIFO.** First come first served. Nothing in the problem suggests otherwise and it's the easiest policy to defend.
 
-**A type can have zero aircraft.** Random distribution across 5 types means one might not show up at all. Those get reported as N/A instead of dividing by zero.
+**A type can have zero aircraft.** The fleet is built by rolling a type per aircraft, which makes the counts random and the total exactly 20 by construction. It also means a type might not show up at all. Those report a dash rather than dividing by zero — and a dash rather than a `0.00`, which would read as a measurement instead of an absence.
 
 ## How it's built
 
@@ -98,24 +100,33 @@ The pieces:
 - `Aircraft` — the spec for one manufacturer's design, plus the derived numbers (endurance, range, drain rate). Immutable.
 - `Vehicle` — one actual aircraft and its state: flying, queued, or charging.
 - `ChargerPool` — the 3 chargers and the line waiting for them.
-- `FaultModel` — interface, with `PoissonFaultModel` as the real one.
-- `Rng` — interface over random numbers, seedable.
+- `FaultModel` — draws the gap to the next fault.
+- `Rng` — seedable wrapper over `std::mt19937`.
 - `Simulation` — owns the clock and the event queue, runs the whole thing.
-- `StatsCollector` — accumulates the five statistics per type.
-- `Reporter` — prints the results table.
+- `Statistics` — folds a finished fleet into the five figures per type.
+- `Reporter` — formats the results table.
 
-`FaultModel` and `Rng` are interfaces mainly so tests can swap in deterministic versions. Once the randomness is stubbed out, every test becomes an exact equality check instead of a statistical one, which is much nicer to work with.
+Only `Simulation` owns a clock. Everything else is told what time it is. Two classes reasoning about time independently is how they end up disagreeing, and every duration in the output depends on them not doing that.
+
+The dependencies only point one way. `Aircraft` has never heard of `Vehicle`; `ChargerPool` has never heard of either, and tracks vehicles as bare integers. That's what let each piece be finished and tested before the one above it existed.
 
 ## Testing
 
-What I'm checking:
+59 tests, no framework. What they cover:
 
-- the derived numbers (endurance, range, drain) against hand calculations from the spec table
-- charger contention: 4 aircraft and 3 chargers means the fourth waits, and the queue stays in order
-- passenger miles reproducing the worked example from the problem statement exactly
-- fault timing being deterministic when the RNG is stubbed
-- a fixed seed producing identical output every run
-- edge cases, mainly zero aircraft of a type not blowing up the averages, and a fleet smaller than 3 never queueing at all
+- derived numbers (endurance, range, drain rate) against hand calculations from the specification table
+- charger contention: a fourth aircraft waits, the queue stays in order, and capacity holds across 200 handovers
+- the vehicle transition table, all nine combinations, including the six that must be rejected
+- every hour of every vehicle adding up to exactly the length of the run — no gaps, nothing counted twice
+- passenger miles reproducing the problem's worked example exactly
+- fault intervals against `-ln(1 - u)/λ` computed by hand, using a second generator on the same seed to recover the `u`
+- faults converging on λ multiplied by hours *actually flown*, over a 3000-hour run
+- byte-for-byte identical output from the same seed
+- edge cases: zero aircraft of a type, a fleet smaller than the charger count, a zero fault rate
+
+A note on the exactness of some of those. Every vehicle flies until its battery is flat, so every completed flight of a type is identical. The reported averages must therefore equal the type's endurance and range to the last decimal — they aren't approximations of anything, which makes them unusually strong assertions for a simulation.
+
+Each component was also checked by deliberately breaking it and confirming the tests noticed: reversing the charger queue to LIFO, letting partial flights into the averages, swapping `1 - u` for `u` in the fault draw, grouping every vehicle under one type. Two of those runs found real problems that the passing tests had missed — a harness that discarded its output on abort, and a tie-break test that passed with the tie-break deleted.
 
 ## Running it
 
@@ -125,10 +136,13 @@ cd eVTOL_simulation_problem
 cmake -S . -B build
 cmake --build build
 
-./build/bin/evtol_sim              # random seed
+./build/bin/evtol_sim              # random seed, printed so you can repeat it
 ./build/bin/evtol_sim --seed 42    # reproducible
-./build/bin/tests
+./build/bin/evtol_sim --help       # other options
+./build/bin/tests                  # 59 unit tests
 ```
+
+`--hours`, `--vehicles` and `--chargers` are there too. They default to the 3, 20 and 3 the problem specifies, but being able to run twenty simulated days through the same code is how several of the tests get a sample large enough to mean anything.
 
 Needs CMake 3.16 or newer and a compiler with C++17. No external dependencies, nothing to fetch, no submodules.
 
@@ -144,12 +158,43 @@ docs/            problem statement and development plan
 
 ## Sample run
 
-Coming once the simulation is actually implemented.
+`./build/bin/evtol_sim --seed 42`
+
+```
+eVTOL fleet simulation
+  20 vehicles, 3 chargers, 3.00 hours
+  seed 42 (re-run with --seed 42)
+
+Company     Vehicles Flights  Avg flight/h  Avg dist/mi  Charges  Avg charge/h  Faults  Passenger-miles
+-------------------------------------------------------------------------------------------------------
+Alpha              6       6        1.6667       200.00        1        0.6000       3           5028.0
+Bravo              2       4        0.6667        66.67        2        0.2000       1           1333.3
+Charlie            4       8        0.6250       100.00        4        0.8000       2           2400.0
+Delta              6       6        1.6667       150.00        2        0.6200       1           1909.8
+Echo               2       4        0.8621        25.86        2        0.3000       3            206.9
+-------------------------------------------------------------------------------------------------------
+Total             20      28             -            -       11             -      10          10878.0
+```
+
+Run that command yourself and you'll get this table back. That's the whole reason the seed is printed.
+
+A few things worth reading out of it.
+
+The averages are exact, not approximate. Alpha's average flight is 1.6667 hours and its average distance is 200.00 miles, which are precisely its endurance and range. That has to be true: every vehicle flies until the battery is flat, so every completed flight of a type is identical. If those columns ever disagreed with the specification table, something would be wrong.
+
+All six Alphas completed exactly one flight. They fly 1h40m, so a second one can't finish inside three hours no matter how the chargers behave. Delta is the same. Charlie, at 37 minutes a flight, got through eight.
+
+Only 11 charges completed across 28 flights. The rest of the fleet was still queued or still charging when the clock stopped — with three chargers and twenty aircraft, that's the bottleneck showing up in the numbers.
+
+Alpha carries the passenger-mile total almost single-handedly: 5028 of 10878, nearly half, from six aircraft. Echo managed 207 from two. It cruises at 30 mph and burns 5.8 kWh a mile, so there isn't much it can do.
+
+Averages are deliberately absent from the total row. An average across types would weigh Alpha's 1h40m flights against Charlie's 37 minutes and mean nothing at all.
 
 ## TODO
 
 - Faults don't do anything right now beyond incrementing a counter. Splitting them into minor and major, where a major fault forces a landing and pulls the aircraft out of service, would be more realistic.
 - FIFO is fair but it's not the best use of the chargers. Letting Bravo (12 minute charge) cut ahead of Charlie (48 minutes) would almost certainly push total passenger miles up. Would be interesting to simulate both and compare.
-- The aircraft specs are hardcoded. Reading them from a config file would let you try new designs without a rebuild.
-- A single 3 hour run with a random fleet split is noisy. Running it a few hundred times and reporting mean and standard deviation would say a lot more than one run does.
+- The aircraft specs are hardcoded. Fleet size, charger count and duration are all command-line options now, but trying a new aircraft design still means a rebuild. A config file would fix that.
+- A single 3 hour run with a random fleet split is noisy — the sample above happened to draw six Alphas, and a different seed tells a noticeably different story. Running a few hundred trials and reporting mean and standard deviation would say far more than any one run does. The code is already set up for it: the run is a pure function of the seed.
+- The eight-parameter `Aircraft` constructor is the sharpest edge in the codebase. Transposing two of the doubles compiles cleanly, and only the specification test would catch it. C++20 designated initializers would make it a compile error.
 - Charging is a fixed duration per the problem statement, but real chargers deliver a rate. Modelling kW throughput would let an aircraft top up partway when the line is short.

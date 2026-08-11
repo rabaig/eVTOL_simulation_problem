@@ -32,6 +32,7 @@ add_library(evtol_core
     src/Aircraft.cpp
     src/ChargerPool.cpp
     src/FaultModel.cpp
+    src/Reporter.cpp
     src/Rng.cpp
     src/Simulation.cpp
     src/Statistics.cpp
