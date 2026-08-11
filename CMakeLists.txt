@@ -34,6 +34,7 @@ add_library(evtol_core
     src/FaultModel.cpp
     src/Rng.cpp
     src/Simulation.cpp
+    src/Statistics.cpp
     src/Vehicle.cpp
 )
 

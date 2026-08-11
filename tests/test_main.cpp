@@ -6,6 +6,7 @@
 #include "test_fault_model.h"
 #include "test_rng.h"
 #include "test_simulation.h"
+#include "test_statistics.h"
 #include "test_vehicle.h"
 
 // Every test is listed here by hand. Adding one means writing the function,
@@ -70,6 +71,15 @@ int main() {
     RUN(a_higher_rate_produces_shorter_gaps);
     RUN(faults_scale_with_flight_hours_not_wall_clock);
     RUN(fault_counts_are_reproducible_from_a_seed);
+
+    RUN(an_absent_type_reports_nothing_rather_than_zero);
+    RUN(average_flight_time_equals_the_type_endurance);
+    RUN(average_distance_equals_the_type_range);
+    RUN(average_charge_time_equals_the_type_charge_time);
+    RUN(averages_ignore_a_flight_still_in_the_air);
+    RUN(passenger_miles_credit_a_flight_still_in_the_air);
+    RUN(passenger_miles_reproduce_the_worked_example);
+    RUN(totals_add_back_up_to_the_whole_fleet);
 
     return summary();
 }

@@ -9,6 +9,7 @@ add_executable(tests
     test_fault_model.cpp
     test_rng.cpp
     test_simulation.cpp
+    test_statistics.cpp
     test_vehicle.cpp
 )
 
