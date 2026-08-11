@@ -6,6 +6,7 @@ add_executable(tests
     TestHarness.cpp
     test_aircraft.cpp
     test_charger_pool.cpp
+    test_fault_model.cpp
     test_rng.cpp
     test_simulation.cpp
     test_vehicle.cpp

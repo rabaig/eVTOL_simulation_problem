@@ -6,7 +6,7 @@
 namespace evtol {
 
 Simulation::Simulation(const SimulationConfig& config, Rng& rng)
-    : config_(config), chargers_(config.chargerCount) {
+    : config_(config), chargers_(config.chargerCount), faultModel_(rng) {
     assert(config.fleetSize > 0);
     assert(config.duration > 0.0);
 
@@ -35,6 +35,44 @@ void Simulation::schedule(Hours at, EventType type, VehicleId vehicle) {
     pending_.push(Event{at, type, vehicle, nextSequence_++});
 }
 
+void Simulation::scheduleNextFault(VehicleId vehicle, Hours from, Hours flightEnds) {
+    const Vehicle& v = fleet_[static_cast<std::size_t>(vehicle)];
+    const Hours at = from + faultModel_.timeToNextFault(v.type().faultsPerHour());
+
+    // Faults accrue only in flight, so a draw landing past the end of this
+    // one simply doesn't happen. Restricting the process to the flight
+    // interval is what keeps queueing and charging fault-free without any
+    // bookkeeping about which flight a stale event belonged to.
+    //
+    // Strictly less than, not less than or equal: at exactly the end of the
+    // flight, FlightComplete was scheduled first and so wins the tie-break,
+    // and the fault would arrive to find the vehicle already on the ground.
+    if (at < flightEnds) {
+        schedule(at, EventType::Fault, vehicle);
+    }
+}
+
+void Simulation::beginFlightEvents(VehicleId vehicle, Hours takeoff) {
+    const Vehicle& v = fleet_[static_cast<std::size_t>(vehicle)];
+    const Hours flightEnds = takeoff + v.type().flightTimeHours();
+
+    schedule(flightEnds, EventType::FlightComplete, vehicle);
+    scheduleNextFault(vehicle, takeoff, flightEnds);
+}
+
+void Simulation::handleFault(VehicleId vehicle, Hours at) {
+    Vehicle& v = fleet_[static_cast<std::size_t>(vehicle)];
+
+    // Guaranteed by scheduleNextFault only ever scheduling inside a flight.
+    assert(v.state() == VehicleState::InFlight);
+
+    v.recordFault();
+
+    // A Poisson process is memoryless, so the next gap is drawn from the
+    // moment of this fault exactly as it was from take-off.
+    scheduleNextFault(vehicle, at, v.stateEnteredAt() + v.type().flightTimeHours());
+}
+
 void Simulation::beginCharging(VehicleId vehicle, Hours at) {
     Vehicle& v = fleet_[static_cast<std::size_t>(vehicle)];
 
@@ -61,9 +99,8 @@ void Simulation::handleChargeComplete(VehicleId vehicle, Hours at) {
     // Released first only because the handover reads better that way.
     const auto next = chargers_.release(vehicle);
 
-    Vehicle& v = fleet_[static_cast<std::size_t>(vehicle)];
-    v.startFlight(at);
-    schedule(at + v.type().flightTimeHours(), EventType::FlightComplete, vehicle);
+    fleet_[static_cast<std::size_t>(vehicle)].startFlight(at);
+    beginFlightEvents(vehicle, at);
 
     if (next.has_value()) {
         beginCharging(*next, at);
@@ -76,7 +113,7 @@ void Simulation::run() {
 
     // Everyone starts airborne on a full battery.
     for (const Vehicle& v : fleet_) {
-        schedule(v.type().flightTimeHours(), EventType::FlightComplete, v.id());
+        beginFlightEvents(v.id(), 0.0);
     }
 
     while (!pending_.empty()) {
@@ -104,6 +141,10 @@ void Simulation::run() {
 
             case EventType::ChargeComplete:
                 handleChargeComplete(event.vehicle, event.time);
+                break;
+
+            case EventType::Fault:
+                handleFault(event.vehicle, event.time);
                 break;
         }
 

@@ -7,6 +7,7 @@
 
 #include "evtol/ChargerPool.h"
 #include "evtol/Event.h"
+#include "evtol/FaultModel.h"
 #include "evtol/Rng.h"
 #include "evtol/Types.h"
 #include "evtol/Vehicle.h"
@@ -53,14 +54,24 @@ private:
     void buildFleet(Rng& rng);
     void schedule(Hours at, EventType type, VehicleId vehicle);
 
+    /// Schedules the end of a flight and the first fault within it.
+    void beginFlightEvents(VehicleId vehicle, Hours takeoff);
+
+    /// Draws the next fault and schedules it only if it lands before the
+    /// battery runs out. A fault that would fall after the flight simply
+    /// doesn't happen on this flight.
+    void scheduleNextFault(VehicleId vehicle, Hours from, Hours flightEnds);
+
     void beginCharging(VehicleId vehicle, Hours at);
     void handleFlightComplete(VehicleId vehicle, Hours at);
     void handleChargeComplete(VehicleId vehicle, Hours at);
+    void handleFault(VehicleId vehicle, Hours at);
 
     SimulationConfig config_;
 
     std::vector<Vehicle> fleet_;
     ChargerPool chargers_;
+    FaultModel faultModel_;
 
     std::priority_queue<Event, std::vector<Event>, EventIsLater> pending_;
 

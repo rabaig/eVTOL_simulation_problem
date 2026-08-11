@@ -3,6 +3,7 @@
 #include "TestHarness.h"
 #include "test_aircraft.h"
 #include "test_charger_pool.h"
+#include "test_fault_model.h"
 #include "test_rng.h"
 #include "test_simulation.h"
 #include "test_vehicle.h"
@@ -61,6 +62,14 @@ int main() {
     RUN(twenty_vehicles_on_three_chargers_do_wait);
     RUN(alpha_completes_exactly_one_flight_in_three_hours);
     RUN(a_longer_run_produces_more_flights);
+
+    RUN(the_interval_matches_the_inverse_transform_formula);
+    RUN(a_zero_fault_rate_never_faults);
+    RUN(intervals_are_never_negative_or_infinite);
+    RUN(the_long_run_mean_interval_converges_on_one_over_lambda);
+    RUN(a_higher_rate_produces_shorter_gaps);
+    RUN(faults_scale_with_flight_hours_not_wall_clock);
+    RUN(fault_counts_are_reproducible_from_a_seed);
 
     return summary();
 }
