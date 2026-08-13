@@ -1,6 +1,8 @@
+#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <optional>
 #include <string>
 
@@ -72,9 +74,31 @@ int main(int argc, char** argv) {
         std::optional<double> value;
 
         if (std::strcmp(arg, "--seed") == 0) {
-            value = readValue(argc, argv, i);
-            if (!value) return 1;
-            requestedSeed = static_cast<std::uint32_t>(*value);
+            // Read as an integer, not through readValue. A seed is a
+            // uint32_t, and going via double means --seed 1.5 is silently
+            // truncated and --seed 5000000000 is an out-of-range float to
+            // integer conversion, which is undefined rather than merely
+            // wrong.
+            if (i + 1 >= argc) {
+                std::fprintf(stderr, "error: --seed needs a value\n");
+                return 1;
+            }
+
+            ++i;
+
+            char* end = nullptr;
+            errno = 0;
+            const unsigned long long parsed = std::strtoull(argv[i], &end, 10);
+
+            if (end == argv[i] || *end != '\0' || errno == ERANGE ||
+                parsed > std::numeric_limits<std::uint32_t>::max()) {
+                std::fprintf(stderr,
+                             "error: --seed must be a whole number from 0 to %u\n",
+                             std::numeric_limits<std::uint32_t>::max());
+                return 1;
+            }
+
+            requestedSeed = static_cast<std::uint32_t>(parsed);
         } else if (std::strcmp(arg, "--hours") == 0) {
             value = readValue(argc, argv, i);
             if (!value) return 1;

@@ -142,7 +142,7 @@ cmake --build build
 ./build/bin/tests                  # 59 unit tests
 ```
 
-`--hours`, `--vehicles` and `--chargers` are there too. They default to the 3, 20 and 3 the problem specifies, but being able to run twenty simulated days through the same code is how several of the tests get a sample large enough to mean anything.
+`--hours`, `--vehicles` and `--chargers` are there too, defaulting to the 3, 20 and 3 the problem specifies. Handy for poking at the model — six chargers instead of three changes the picture a lot. The tests don't use them; they build a `SimulationConfig` directly.
 
 Needs CMake 3.16 or newer and a compiler with C++17. No external dependencies, nothing to fetch, no submodules.
 
