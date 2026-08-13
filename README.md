@@ -126,7 +126,7 @@ What they cover:
 - byte-for-byte identical output from the same seed
 - edge cases: zero aircraft of a type, a fleet smaller than the charger count, a zero fault rate
 
-A note on the exactness of some of those. Every vehicle flies until its battery is flat, so every completed flight of a type is identical. The reported averages must therefore equal the type's endurance and range to the last decimal — they aren't approximations of anything, which makes them unusually strong assertions for a simulation.
+Several of those are exact rather than approximate, for the reason described under the sample run below — which makes them unusually strong assertions for a simulation.
 
 Each component was also checked by deliberately breaking it and confirming the tests noticed: reversing the charger queue to LIFO, letting partial flights into the averages, swapping `1 - u` for `u` in the fault draw, grouping every vehicle under one type. Two of those runs found real problems that the passing tests had missed — a harness that discarded its output on abort, and a tie-break test that passed with the tie-break deleted.
 
@@ -189,25 +189,12 @@ averages, but the miles already flown on them are included in passenger-miles.
 
 Run that command yourself and you'll get this table back. That's the whole reason the seed is printed.
 
-A few things worth reading out of it.
+Three things to read out of it. The averages are exact rather than approximate — Alpha's 1.6667 hours and 200.00 miles are precisely its endurance and range, because every completed flight of a type is identical. Only 11 charges finished across 28 flights, the rest of the fleet still queued or charging when the clock stopped. And `Queued/h` totals 7.83 hours of waiting inside a three-hour run, which is the clearest measure of what three chargers for twenty aircraft actually costs.
 
-The averages are exact, not approximate. Alpha's average flight is 1.6667 hours and its average distance is 200.00 miles, which are precisely its endurance and range. That has to be true: every vehicle flies until the battery is flat, so every completed flight of a type is identical. If those columns ever disagreed with the specification table, something would be wrong.
-
-All six Alphas completed exactly one flight. They fly 1h40m, so a second one can't finish inside three hours no matter how the chargers behave. Delta is the same. Charlie, at 37 minutes a flight, got through eight.
-
-Only 11 charges completed across 28 flights. The rest of the fleet was still queued or still charging when the clock stopped — with three chargers and twenty aircraft, that's the bottleneck showing up in the numbers.
-
-Alpha carries the passenger-mile total almost single-handedly: 5028 of 10878, nearly half, from six aircraft. Echo managed 207 from two. It cruises at 30 mph and burns 5.8 kWh a mile, so there isn't much it can do.
-
-Averages are deliberately absent from the total row. An average across types would weigh Alpha's 1h40m flights against Charlie's 37 minutes and mean nothing at all.
-
-`Queued/h` isn't one of the five figures the problem asks for. It's here because with twenty aircraft and three chargers it's the most direct measure of what the shortage actually costs — 7.83 hours of the fleet's time spent waiting, in a three-hour run.
+The total row carries no averages on purpose: one across types would weigh Alpha's 1h40m flights against Charlie's 37 minutes and mean nothing.
 
 ## TODO
 
-- Faults don't do anything right now beyond incrementing a counter. Splitting them into minor and major, where a major fault forces a landing and pulls the aircraft out of service, would be more realistic.
-- FIFO is fair but it's not the best use of the chargers. Letting Bravo (12 minute charge) cut ahead of Charlie (48 minutes) would almost certainly push total passenger miles up. Would be interesting to simulate both and compare.
-- The aircraft specs are hardcoded. Fleet size, charger count and duration are all command-line options now, but trying a new aircraft design still means a rebuild. A config file would fix that.
-- A single 3 hour run with a random fleet split is noisy — the sample above happened to draw six Alphas, and a different seed tells a noticeably different story. Running a few hundred trials and reporting mean and standard deviation would say far more than any one run does. The code is already set up for it: the run is a pure function of the seed.
-- The specification table is still eight positional values per row, so transposing two doubles compiles cleanly and only the specification test would catch it. C++20 designated initializers (`.cruiseSpeedMph = 120.0`) would make it a compile error — now possible, since `AircraftSpec` is an aggregate.
-- Charging is a fixed duration per the problem statement, but real chargers deliver a rate. Modelling kW throughput would let an aircraft top up partway when the line is short.
+- **One run is noisy.** The sample happened to draw six Alphas; a different seed tells a noticeably different story. A few hundred trials reporting mean and standard deviation would say far more. The code is already set up for it — the run is a pure function of the seed.
+- **FIFO is fair but wasteful.** Letting Bravo (12 minute charge) cut ahead of Charlie (48 minutes) would almost certainly raise total passenger miles. Worth simulating both and comparing.
+- **The specification table is still eight positional values per row**, so transposing two doubles compiles cleanly and only one test would catch it. C++20 designated initializers (`.cruiseSpeedMph = 120.0`) would make it a compile error — possible now that `AircraftSpec` is an aggregate.

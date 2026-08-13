@@ -2,36 +2,15 @@
 
 How I'm breaking this problem up and working through it.
 
-The whole thing could be written in one sitting as a single file, but that isn't how I'd build it at work and it wouldn't show much. So I've split it into eight stages. Each one is a ticket, each ticket gets its own branch, and each branch ends in a pull request with a description of what changed and why. The git history should read as a record of how the design came together.
+The whole thing could be written in one sitting as a single file, but that isn't how I'd build it at work and it wouldn't show much. So I've split it into stages. Each one is a ticket, each ticket gets its own branch, and each branch ends in a pull request with a description of what changed and why. The git history should read as a record of how the design came together.
 
-## Branching
+## Working method
 
-Trunk-based. `main` is always in a working state, and every piece of work happens on a short-lived branch off it.
+Trunk-based. `main` always builds; every ticket is a short-lived branch off it, merged back through a PR with `--no-ff` so each ticket stays a visible cluster rather than being flattened into a straight line. Squash-merging would give a tidier log and throw away the sequence of decisions inside each ticket, which is the part worth reading.
 
-```
-feature/EVTOL-<n>-<short-description>
-```
+Commit subjects carry the ticket ID; commit bodies carry the reasoning, not a restatement of the diff. If a commit involved a judgement call, the body says what the alternatives were.
 
-so `feature/EVTOL-3-charger-pool`, `feature/EVTOL-6-fault-model`, and so on.
-
-Branches are merged back with `--no-ff` even when a fast-forward is possible. That's deliberate: it keeps each ticket visible as a distinct group of commits in the history rather than flattening everything into a straight line. Squash-merging would give a tidier log but would throw away the sequence of decisions inside each ticket, which is the interesting part here.
-
-The README and this plan are on `main` directly, since they're what the branches get planned from. Everything after that goes through a branch and a PR, even though I'm the only one reviewing.
-
-## Commits
-
-Imperative subject line, kept under 72 characters, with the ticket ID at the front:
-
-```
-EVTOL-3: Add FIFO queue to ChargerPool
-
-A charger serves one aircraft at a time and the problem gives no
-guidance on ordering, so arrivals are served first come first served.
-Documented as an assumption in the README along with a note about
-why a shortest-charge-first policy would likely score better.
-```
-
-The body is for the reasoning, not a restatement of the diff. If a commit involved a judgement call, the body is where I say what the alternatives were.
+The rest of this file is the tickets. `git log --graph` shows how it actually went.
 
 ## The stages
 
@@ -46,6 +25,15 @@ The body is for the reasoning, not a restatement of the diff. If a commit involv
 | EVTOL-7 | `feature/EVTOL-7-statistics` | 5 |
 | EVTOL-8 | `feature/EVTOL-8-reporting-and-docs` | 6, 7 |
 | EVTOL-9 | `chore/EVTOL-9-continuous-integration` | 1 |
+
+Added after a review pass over the finished code:
+
+| Ticket | Branch | What |
+|---|---|---|
+| EVTOL-10 | `fix/EVTOL-10-correctness-defects` | Four defects, including UB in a Release build and a test assertion that could never fail |
+| EVTOL-11 | `chore/EVTOL-11-trim-tests` | 59 tests down to 26, in one file |
+| EVTOL-12 | `refactor/EVTOL-12-simplify-code` | `AircraftSpec` becomes a struct; the names that needed comments to explain them |
+| EVTOL-13 | `docs/EVTOL-13-trim-documentation` | This file and the README, cut to what earns its place |
 
 ---
 
@@ -69,11 +57,11 @@ Done when: `cmake --build build` produces both binaries, `./build/bin/tests` run
 
 The five aircraft types and the numbers that fall out of them.
 
-`Aircraft` holds the six given properties and exposes the derived ones: drain rate in kWh/hr, endurance in hours, range in miles, passenger-miles per flight. Immutable once constructed. The five company specs live in one place as named constants.
+`AircraftSpec` holds the six given properties and derives drain rate, endurance, range and passenger-miles per flight. The five specs live in one table. This is where the maths gets pinned down, and it's the easiest ticket to test properly because every expected value can be worked out by hand.
 
-This is the ticket where the maths gets pinned down, and it's the easiest one to test properly because the expected values can be worked out by hand from the specification table.
+Done when: endurance, range and drain rate are verified against hand calculations for all five types.
 
-Done when: endurance, range and drain rate are verified against hand calculations for all five types, and the derived values are computed once rather than recalculated on every call.
+> **Changed later.** This shipped as a class with an eight parameter constructor, twelve getters and the derived values cached in members. EVTOL-12 made it a plain struct computing them on demand. The caching was justified in a comment claiming the simulation reads them constantly; it reads them about sixty times in a whole run.
 
 ---
 
@@ -83,8 +71,6 @@ Three chargers and the queue for them, built and tested in isolation with no air
 
 `ChargerPool` tracks how many chargers are free and holds a FIFO queue of waiting vehicles. Two operations: request a charger (either granted immediately or you join the queue) and release one (the head of the queue takes it, if anyone is waiting).
 
-Keeping this independent of `Vehicle` is what makes it testable on its own. The tests can push integers through it instead of constructing aircraft.
-
 Done when: requesting with a free charger is granted immediately, the fourth simultaneous request queues, releasing hands the charger to the longest waiter, and releasing with an empty queue just frees the charger.
 
 ---
@@ -93,9 +79,7 @@ Done when: requesting with a free charger is granted immediately, the fourth sim
 
 One aircraft and the states it moves through: in flight, waiting, charging.
 
-`Vehicle` owns a pointer to its `Aircraft` spec plus its current state and the timestamps of when the current state began. It knows the legal transitions and rejects the illegal ones. It does not own a clock and does not schedule anything itself, it just responds to being told that something happened.
-
-The reason for keeping it passive is that the simulation engine in the next ticket owns time. If `Vehicle` also tried to reason about time you'd have the clock in two places.
+`Vehicle` owns a pointer to its `AircraftSpec` plus its current state and the timestamps of when the current state began. It knows the legal transitions and rejects the illegal ones. It does not own a clock and does not schedule anything itself, it just responds to being told that something happened.
 
 Done when: a vehicle starts in flight fully charged, the flight-to-queue-to-charging-to-flight cycle works, illegal transitions are rejected, and time spent in each state is tracked correctly.
 
@@ -107,8 +91,6 @@ The event loop, and the point where the previous three tickets start behaving li
 
 A priority queue of events ordered by time, a clock that jumps from one event to the next rather than ticking in fixed steps, and the handlers for flight-complete and charge-complete. Fleet generation also lives here: 20 vehicles split randomly across the five types using the injected `Rng`. The loop runs until the clock passes 3 hours.
 
-Discrete-event rather than fixed-timestep because every state change in this system happens at a time you can calculate in advance. There's no timestep to tune and no rounding error, and the whole run finishes in milliseconds.
-
 Done when: a seeded run is reproducible, the fleet always totals 20, no more than 3 vehicles are ever charging at once, and the clock never runs backwards. The charger constraint gets an assertion rather than just a test, since violating it silently would invalidate every statistic.
 
 ---
@@ -117,11 +99,11 @@ Done when: a seeded run is reproducible, the fleet always totals 20, no more tha
 
 Faults, as a continuous process rather than an hourly coin flip.
 
-`FaultModel` samples the next fault time as `-ln(U)/λ`, with λ taken from the type's hourly probability. Faults are scheduled as events like anything else and only accrue while a vehicle is airborne. A fault increments a counter and the flight continues.
+`FaultModel` samples the gap to the next fault as `-ln(1 - u)/λ`, with λ taken from the type's hourly probability. Faults are scheduled as events like anything else and only accrue while a vehicle is airborne. A fault increments a counter and the flight continues.
 
-`uniform01()` returns values in `[0, 1)`, so zero can come back and the logarithm has to be fed `1 - u` rather than `u` directly. Small detail, but it's an infinity if it's missed.
+The `1 - u` is not cosmetic: `uniform01()` returns `[0, 1)`, so zero can come back and `ln(0)` is negative infinity.
 
-Testing this without a stub takes a bit more care. Fault counts come from a fixed seed and are asserted against recorded output, which catches regressions but doesn't prove correctness on its own. The correctness argument is the long-run check: over enough simulated hours the observed rate has to converge on λ, and that test is doing the real work.
+Testing this without a stub takes some care. A fixed seed catches regressions but doesn't prove correctness; the argument for correctness is the long-run check, where the observed rate has to converge on λ over far more hours than the real run.
 
 Done when: a seeded run reproduces its fault counts exactly, faults don't fire while charging or queued, and a long-run rate check lands near the expected value.
 
@@ -129,13 +111,9 @@ Done when: a seeded run reproduces its fault counts exactly, faults don't fire w
 
 ### EVTOL-7 — Statistics
 
-Collecting the five required numbers, per type rather than per aircraft.
-
-`collectStatistics()` folds a finished fleet into the five figures, grouped by manufacturer.
+`collectStatistics()` folds a finished fleet into the five required figures, grouped by manufacturer rather than by aircraft.
 
 > **Changed during the ticket.** This was planned as a `StatsCollector` class subscribing to the events the simulation emits. It ended up as a plain function, because by this point vehicles already accumulate their own totals as transitions happen — so there is no state left for a collector to keep and nothing to subscribe to. An observer would have been machinery wrapped around a `for` loop.
-
-Two things need care here. Flights and charge sessions still in progress when the clock stops are excluded from the averages, because counting a truncated flight would drag the average below what the aircraft can actually do. The miles flown during those partial flights still count, since they happened. And a type with zero vehicles has to report as not-applicable rather than dividing by zero, which the random fleet split makes a real possibility.
 
 Done when: passenger-miles reproduces the worked example from the problem statement exactly, truncated flights are excluded from averages but their miles are counted, and an absent type doesn't crash the report.
 
@@ -146,8 +124,6 @@ Done when: passenger-miles reproduces the worked example from the problem statem
 Output, and everything needed to hand it over.
 
 `Reporter` formats the per-type results as an aligned table. Command-line handling for `--seed` so a run can be reproduced. A committed sample run in the README, which the problem asks for explicitly.
-
-The last part of this ticket is a pass back over the README to make sure the assumptions section matches what the code actually does, and that the TODOs are the ones still outstanding rather than ones already handled along the way.
 
 Done when: output is readable and aligned, `--seed 42` gives identical output on repeated runs, and the README contains a real run.
 
@@ -165,20 +141,14 @@ Done when: the badge is green on `main` and every PR shows its own result.
 
 ---
 
-## Finishing up
-
-Tag `v1.0` on `main` once EVTOL-8 merges.
-
-The history at that point should show a merge commit per ticket, with the work inside each visible underneath. Anyone reading it should be able to follow the order the design was built in without reading the code first.
-
----
-
 ## Looking back
 
-All nine landed. Three things are worth recording, since the point of writing a plan down is being able to see afterwards where it was wrong.
+`v1.0` is tagged on `main`. Four things are worth recording, since the point of writing a plan down is being able to see afterwards where it was wrong.
 
 **Two designs got simpler than planned.** `Rng` and `FaultModel` were both specified as interfaces with test doubles behind them — the textbook approach, and it does buy exact assertions. Both were dropped for concrete classes and fixed seeds. The trade is real and named in each section above: tests now largely catch change rather than proving correctness, and the gap is covered by long-run convergence checks and by a second generator on the same seed recovering the exact draw where the result is a pure function of one.
 
 **CI arrived far too late.** EVTOL-9 should have been EVTOL-1.5. Every PR before it merged without anything checking it built on a second compiler.
 
-**The tests that mattered most were the ones written to fail.** Every ticket was checked by deliberately breaking the code, and twice that found problems the passing tests could not have: a harness that discarded its output when a test aborted, and a tie-break test that passed with the tie-break deleted because libstdc++ happens not to reorder three equal elements. Both would have shipped looking tested.
+**The tests that mattered most were the ones written to fail.** Every ticket was checked by deliberately breaking the code, and twice that found problems the passing tests could not have: a harness that discarded its output when a test aborted, and a tie-break test that passed with the tie-break deleted, because libstdc++ happens not to reorder three equal elements. Both would have shipped looking tested.
+
+**Too much of everything.** A review pass over the finished code (EVTOL-10 to 13) cut 59 tests to 26 and around 250 lines from the source without losing any coverage — verified by re-running every mutation from the earlier tickets against the smaller suite. It also found four real defects, including undefined behaviour that only existed in Release builds and a test assertion that could never fail. The lesson isn't that the extra material was wrong; it's that volume was hiding the parts that mattered, and a review pass caught what writing more never would have.
