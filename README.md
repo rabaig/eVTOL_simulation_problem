@@ -130,31 +130,113 @@ Several of those are exact rather than approximate, for the reason described und
 
 Each component was also checked by deliberately breaking it and confirming the tests noticed: reversing the charger queue to LIFO, letting partial flights into the averages, swapping `1 - u` for `u` in the fault draw, grouping every vehicle under one type. Two of those runs found real problems that the passing tests had missed — a harness that discarded its output on abort, and a tie-break test that passed with the tie-break deleted.
 
-## Running it
+## Building and running
+
+### What you need
+
+CMake 3.16 or newer, and a C++17 compiler. That's the whole list — no external libraries, nothing downloaded during the build, no submodules.
+
+<details>
+<summary>Installing those, if you don't have them</summary>
+
+**macOS** — the compiler comes with Apple's command line tools:
+
+```bash
+xcode-select --install
+brew install cmake
+```
+
+**Ubuntu / Debian:**
+
+```bash
+sudo apt update && sudo apt install -y build-essential cmake
+```
+
+**Windows** — install Visual Studio 2019 or newer with the "Desktop development with C++" workload, which includes CMake. Run the commands below from a *Developer Command Prompt*.
+
+Check both are present:
+
+```bash
+cmake --version     # 3.16 or higher
+c++ --version
+```
+
+</details>
+
+### Build
 
 ```bash
 git clone https://github.com/rabaig/eVTOL_simulation_problem.git
 cd eVTOL_simulation_problem
-cmake -S . -B build
-cmake --build build
 
-./build/bin/evtol_sim              # random seed, printed so you can repeat it
-./build/bin/evtol_sim --seed 42    # reproducible
-./build/bin/tests                  # the unit tests
+cmake -S . -B build      # configure: reads CMakeLists.txt, writes build/
+cmake --build build      # compile
 ```
 
-`--seed` is the only option. Fleet size, charger count and duration are fixed at the 20, 3 and 3 hours the problem specifies; tests that need something different build a `SimulationConfig` directly.
+Takes a few seconds. It produces two programs in `build/bin/`: `evtol_sim` and `tests`.
 
-Needs CMake 3.16 or newer and a compiler with C++17. No external dependencies, nothing to fetch, no submodules.
+If you'd rather use an IDE, this is a standard CMake project — CLion, Visual Studio and Qt Creator all open `CMakeLists.txt` directly and handle the two commands above themselves.
 
-Layout:
+### Run
+
+```bash
+./build/bin/evtol_sim
+```
+
+That runs the simulation the problem describes: 20 vehicles, 3 chargers, 3 hours. It prints the results table shown further down, and it picks a random seed each time, so the numbers change from run to run.
+
+To get the same numbers every time, give it a seed:
+
+```bash
+./build/bin/evtol_sim --seed 42
+```
+
+That reproduces the sample run in this README exactly. Every run prints the seed it used — including the random ones — so any result you find interesting can be repeated.
+
+`--seed` is the only option. Fleet size, charger count and duration are fixed at what the problem specifies; the tests build a `SimulationConfig` directly when they need something different.
+
+### Run the tests
+
+```bash
+./build/bin/tests
+```
+
+26 tests, about ten milliseconds. Every test prints its name, a failure prints the file and line it came from, and the program exits non-zero if anything failed. `ctest --test-dir build` works too, if you prefer to drive it that way.
+
+### Debug builds
+
+The default build is optimised, with `assert` compiled out. To get the assertions — worth doing if you change anything, since several invariants are enforced that way rather than by tests:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build
+```
+
+Both configurations are built and tested on Linux and macOS by CI on every push.
+
+### If the build fails
+
+**`cmake: command not found`** — see the install section above.
+
+**`No CMAKE_CXX_COMPILER could be found`** — CMake is installed but a compiler isn't. On macOS run `xcode-select --install`.
+
+**A cache error mentioning a different directory** — the `build/` folder was configured somewhere else, usually because the project was moved or copied. Delete it and start again; nothing in there is precious:
+
+```bash
+rm -rf build
+cmake -S . -B build
+```
+
+### Where things are
 
 ```
 include/evtol/   public headers
 src/             implementation
-tests/           unit tests and the harness they run in
+tests/           the tests and the harness they run in
 docs/            problem statement and development plan
 ```
+
+Start with `docs/PLAN.md` for how the project was built, or `src/Simulation.cpp` for the event loop everything else hangs off.
 
 
 ## Sample run
