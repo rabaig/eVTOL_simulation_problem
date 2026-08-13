@@ -112,7 +112,9 @@ The dependencies only point one way. `Aircraft` has never heard of `Vehicle`; `C
 
 ## Testing
 
-59 tests, no framework. What they cover:
+26 tests, no framework. The problem asked for "just a few examples", so these are the ones worth defending: each covers something that could plausibly be wrong and that no other test would catch. Tests that only exercised the standard library, or restated a fact from the specification table, were left out.
+
+What they cover:
 
 - derived numbers (endurance, range, drain rate) against hand calculations from the specification table
 - charger contention: a fourth aircraft waits, the queue stays in order, and capacity holds across 200 handovers
@@ -139,7 +141,7 @@ cmake --build build
 ./build/bin/evtol_sim              # random seed, printed so you can repeat it
 ./build/bin/evtol_sim --seed 42    # reproducible
 ./build/bin/evtol_sim --help       # other options
-./build/bin/tests                  # 59 unit tests
+./build/bin/tests                  # the unit tests
 ```
 
 `--hours`, `--vehicles` and `--chargers` are there too, defaulting to the 3, 20 and 3 the problem specifies. Handy for poking at the model — six chargers instead of three changes the picture a lot. The tests don't use them; they build a `SimulationConfig` directly.
