@@ -3,28 +3,59 @@
 
 #include <cmath>
 #include <cstdio>
-#include <string>
 
 /// Assertions for the unit tests.
 ///
-/// The problem says tests don't need to run in a framework, so this is just
-/// three checks and a counter. A failure prints the file and line it came
-/// from, and the run exits non-zero if anything failed.
+/// The problem says tests don't need to run in a framework, so this is three
+/// checks and a counter. A failure prints the file and line it came from, and
+/// the run exits non-zero if anything failed.
 ///
-/// Tests are plain functions. test_main.cpp calls them.
+/// Header-only, using C++17 inline variables, so the whole harness is one
+/// file and there is nothing to link.
 
 namespace evtol::test {
 
-/// Failures seen so far. runTest resets this per test.
-extern int failureCount;
+inline int failuresInTest = 0;
+inline int testsRun = 0;
+inline int testsFailed = 0;
 
-void reportFailure(const char* file, int line, const std::string& what);
+inline void reportFailure(const char* file, int line, const char* what) {
+    ++failuresInTest;
+    std::printf("      %s:%d  %s\n", file, line, what);
 
-/// Runs one test function and prints whether it passed.
-void runTest(const char* name, void (*fn)());
+    // Flushed immediately. A failing check often leaves the code under test in
+    // a state that trips an assert a few lines later, and abort() discards
+    // whatever is still buffered - losing the one line that says what went
+    // wrong first.
+    std::fflush(stdout);
+}
+
+inline void runTest(const char* name, void (*fn)()) {
+    failuresInTest = 0;
+    ++testsRun;
+
+    std::printf("  %s\n", name);
+    std::fflush(stdout);
+
+    fn();
+
+    if (failuresInTest > 0) {
+        ++testsFailed;
+        std::printf("    FAILED (%d check%s)\n", failuresInTest,
+                    failuresInTest == 1 ? "" : "s");
+    }
+}
 
 /// Exit code for main: 0 if every test passed.
-int summary();
+inline int summary() {
+    if (testsFailed == 0) {
+        std::printf("\n%d tests passed\n", testsRun);
+        return 0;
+    }
+
+    std::printf("\n%d of %d tests failed\n", testsFailed, testsRun);
+    return 1;
+}
 
 }  // namespace evtol::test
 
