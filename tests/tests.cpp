@@ -46,7 +46,7 @@ namespace {
 
 constexpr double kTolerance = 1e-9;
 
-const Aircraft& alpha() { return aircraftFor(Company::Alpha); }
+const AircraftSpec& alpha() { return aircraftFor(Company::Alpha); }
 
 struct Run {
     SimulationConfig config;
@@ -99,28 +99,28 @@ std::string rowFor(const std::string& report, const std::string& company) {
 }
 
 // ---------------------------------------------------------------------------
-// Aircraft: the numbers everything else is derived from
+// AircraftSpec: the numbers everything else is derived from
 // ---------------------------------------------------------------------------
 
 void specs_match_the_problem_statement_table() {
-    // The constructor takes eight positional values, six of them doubles, so
-    // transposing two of them compiles cleanly. This is the test that catches
-    // it. Alpha and Echo are the two extremes of the table.
-    const Aircraft& a = aircraftFor(Company::Alpha);
-    CHECK_NEAR(a.cruiseSpeedMph(), 120.0, kTolerance);
-    CHECK_NEAR(a.batteryCapacityKwh(), 320.0, kTolerance);
-    CHECK_NEAR(a.chargeTimeHours(), 0.60, kTolerance);
-    CHECK_NEAR(a.energyPerMileKwh(), 1.6, kTolerance);
-    CHECK_EQ(a.passengerCount(), 4);
-    CHECK_NEAR(a.faultsPerHour(), 0.25, kTolerance);
+    // The table is written as eight positional values per row, six of them
+    // doubles, so transposing two compiles cleanly. This is the test that
+    // catches it. Alpha and Echo are the two extremes.
+    const AircraftSpec& a = aircraftFor(Company::Alpha);
+    CHECK_NEAR(a.cruiseSpeedMph, 120.0, kTolerance);
+    CHECK_NEAR(a.batteryCapacityKwh, 320.0, kTolerance);
+    CHECK_NEAR(a.chargeTimeHours, 0.60, kTolerance);
+    CHECK_NEAR(a.energyPerMileKwh, 1.6, kTolerance);
+    CHECK_EQ(a.passengerCount, 4);
+    CHECK_NEAR(a.faultsPerHour, 0.25, kTolerance);
 
-    const Aircraft& e = aircraftFor(Company::Echo);
-    CHECK_NEAR(e.cruiseSpeedMph(), 30.0, kTolerance);
-    CHECK_NEAR(e.batteryCapacityKwh(), 150.0, kTolerance);
-    CHECK_NEAR(e.chargeTimeHours(), 0.30, kTolerance);
-    CHECK_NEAR(e.energyPerMileKwh(), 5.8, kTolerance);
-    CHECK_EQ(e.passengerCount(), 2);
-    CHECK_NEAR(e.faultsPerHour(), 0.61, kTolerance);
+    const AircraftSpec& e = aircraftFor(Company::Echo);
+    CHECK_NEAR(e.cruiseSpeedMph, 30.0, kTolerance);
+    CHECK_NEAR(e.batteryCapacityKwh, 150.0, kTolerance);
+    CHECK_NEAR(e.chargeTimeHours, 0.30, kTolerance);
+    CHECK_NEAR(e.energyPerMileKwh, 5.8, kTolerance);
+    CHECK_EQ(e.passengerCount, 2);
+    CHECK_NEAR(e.faultsPerHour, 0.61, kTolerance);
 
     CHECK_EQ(allAircraft().size(), kCompanyCount);
 }
@@ -140,11 +140,11 @@ void endurance_and_range_match_hand_calculation() {
     CHECK_NEAR(aircraftFor(Company::Charlie).powerDrawKwhPerHour(), 352.0, kTolerance);
     CHECK_NEAR(aircraftFor(Company::Echo).powerDrawKwhPerHour(), 174.0, kTolerance);
 
-    CHECK_NEAR(aircraftFor(Company::Alpha).flightTimeHours(), 320.0 / 192.0, kTolerance);
-    CHECK_NEAR(aircraftFor(Company::Bravo).flightTimeHours(), 100.0 / 150.0, kTolerance);
-    CHECK_NEAR(aircraftFor(Company::Charlie).flightTimeHours(), 0.625, kTolerance);
-    CHECK_NEAR(aircraftFor(Company::Delta).flightTimeHours(), 120.0 / 72.0, kTolerance);
-    CHECK_NEAR(aircraftFor(Company::Echo).flightTimeHours(), 150.0 / 174.0, kTolerance);
+    CHECK_NEAR(aircraftFor(Company::Alpha).enduranceHours(), 320.0 / 192.0, kTolerance);
+    CHECK_NEAR(aircraftFor(Company::Bravo).enduranceHours(), 100.0 / 150.0, kTolerance);
+    CHECK_NEAR(aircraftFor(Company::Charlie).enduranceHours(), 0.625, kTolerance);
+    CHECK_NEAR(aircraftFor(Company::Delta).enduranceHours(), 120.0 / 72.0, kTolerance);
+    CHECK_NEAR(aircraftFor(Company::Echo).enduranceHours(), 150.0 / 174.0, kTolerance);
 
     CHECK_NEAR(aircraftFor(Company::Alpha).rangeMiles(), 200.0, kTolerance);
     CHECK_NEAR(aircraftFor(Company::Charlie).rangeMiles(), 100.0, kTolerance);
@@ -153,16 +153,16 @@ void endurance_and_range_match_hand_calculation() {
 
     // Alpha and Delta reach the same endurance from very different batteries,
     // which looks like a bug until you check it.
-    CHECK_NEAR(aircraftFor(Company::Alpha).flightTimeHours(),
-               aircraftFor(Company::Delta).flightTimeHours(), kTolerance);
+    CHECK_NEAR(aircraftFor(Company::Alpha).enduranceHours(),
+               aircraftFor(Company::Delta).enduranceHours(), kTolerance);
 }
 
 void lookup_returns_the_matching_company() {
     // aircraftFor indexes the spec array with the enum value, so the array
     // order and the enum order have to agree. Reordering either one silently
     // gives every vehicle the wrong aircraft.
-    for (const Aircraft& spec : allAircraft()) {
-        CHECK(aircraftFor(spec.company()).name() == spec.name());
+    for (const AircraftSpec& spec : allAircraft()) {
+        CHECK(aircraftFor(spec.company).name == spec.name);
     }
 }
 
@@ -407,7 +407,7 @@ void faults_scale_with_flight_hours_not_wall_clock() {
     double flightHours = 0.0;
 
     for (const Vehicle& v : run.fleet) {
-        expected += v.type().faultsPerHour() * v.totalFlightHours();
+        expected += v.type().faultsPerHour * v.totalFlightHours();
         observed += v.faults();
         flightHours += v.totalFlightHours();
     }
@@ -506,7 +506,7 @@ void alpha_completes_exactly_one_flight_in_three_hours() {
 
     bool sawAnAlpha = false;
     for (const Vehicle& v : run.fleet) {
-        if (v.type().company() != Company::Alpha) {
+        if (v.type().company != Company::Alpha) {
             continue;
         }
 
@@ -533,15 +533,15 @@ void averages_equal_the_type_specification() {
         const Run run = simulate(seed, 8.0);
 
         for (const TypeStatistics& row : run.stats) {
-            const Aircraft& spec = aircraftFor(row.company);
+            const AircraftSpec& spec = aircraftFor(row.company);
 
             if (row.completedFlights > 0) {
-                CHECK_NEAR(*row.averageFlightTime(), spec.flightTimeHours(), kTolerance);
+                CHECK_NEAR(*row.averageFlightTime(), spec.enduranceHours(), kTolerance);
                 CHECK_NEAR(*row.averageDistancePerFlight(), spec.rangeMiles(), kTolerance);
             }
 
             if (row.completedCharges > 0) {
-                CHECK_NEAR(*row.averageChargeTime(), spec.chargeTimeHours(), kTolerance);
+                CHECK_NEAR(*row.averageChargeTime(), spec.chargeTimeHours, kTolerance);
             }
         }
     }
@@ -581,7 +581,7 @@ void a_flight_in_the_air_is_excluded_from_averages_but_not_from_miles() {
     CHECK(!alphaRow.averageDistancePerFlight().has_value());
 
     // One hour at 120 mph with 4 seats, times however many Alphas there are.
-    const double expected = 1.0 * alpha().cruiseSpeedMph() * alpha().passengerCount() *
+    const double expected = 1.0 * alpha().cruiseSpeedMph * alpha().passengerCount *
                             alphaRow.vehicleCount;
 
     CHECK(alphaRow.totalPassengerMiles > 0.0);
@@ -595,13 +595,15 @@ void passenger_miles_reproduce_the_worked_example() {
     // Built by hand rather than from a run, so the arithmetic is checked
     // against the stated answer with nothing else in the way. Battery equals
     // drain rate, so this aircraft flies exactly one hour.
-    const Aircraft example(Company::Bravo, "Example",
-                           100.0,  // mph
-                           150.0,  // kWh
-                           0.5,
-                           1.5,    // kWh/mile
-                           4,      // passengers
-                           0.0);
+    const AircraftSpec example{
+        Company::Bravo, "Example",
+        100.0,  // mph
+        150.0,  // kWh - equal to the drain rate, so it flies exactly one hour
+        0.5,    // charge hours, unused here
+        1.5,    // kWh/mile
+        4,      // passengers
+        0.0     // faults per hour
+    };
 
     std::vector<Vehicle> pair;
     pair.emplace_back(0, example, 0.0);

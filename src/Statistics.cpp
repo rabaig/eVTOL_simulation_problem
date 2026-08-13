@@ -40,8 +40,8 @@ std::array<TypeStatistics, kCompanyCount> collectStatistics(
     }
 
     for (const Vehicle& vehicle : fleet) {
-        const Aircraft& spec = vehicle.type();
-        TypeStatistics& row = stats[static_cast<std::size_t>(spec.company())];
+        const AircraftSpec& spec = vehicle.type();
+        TypeStatistics& row = stats[static_cast<std::size_t>(spec.company)];
 
         ++row.vehicleCount;
 
@@ -55,7 +55,7 @@ std::array<TypeStatistics, kCompanyCount> collectStatistics(
 
         // Every flight runs the battery flat, so distance is simply the hours
         // flown at cruise speed. No integration required.
-        const double completedMiles = vehicle.totalFlightHours() * spec.cruiseSpeedMph();
+        const double completedMiles = vehicle.totalFlightHours() * spec.cruiseSpeedMph;
         row.completedFlightMiles += completedMiles;
 
         // A vehicle still airborne at the end has covered ground that hasn't
@@ -65,7 +65,7 @@ std::array<TypeStatistics, kCompanyCount> collectStatistics(
         const double airborneMiles = vehicle.milesFlownInCurrentFlight(endOfRun);
 
         row.totalPassengerMiles +=
-            (completedMiles + airborneMiles) * spec.passengerCount();
+            (completedMiles + airborneMiles) * spec.passengerCount;
     }
 
     return stats;

@@ -37,7 +37,7 @@ void Simulation::schedule(Hours at, EventType type, VehicleId vehicle) {
 
 void Simulation::scheduleNextFault(VehicleId vehicle, Hours from, Hours flightEnds) {
     const Vehicle& v = fleet_[static_cast<std::size_t>(vehicle)];
-    const Hours at = from + faultModel_.timeToNextFault(v.type().faultsPerHour());
+    const Hours at = from + faultModel_.timeToNextFault(v.type().faultsPerHour);
 
     // Faults accrue only in flight, so a draw landing past the end of this
     // one simply doesn't happen. Restricting the process to the flight
@@ -54,7 +54,7 @@ void Simulation::scheduleNextFault(VehicleId vehicle, Hours from, Hours flightEn
 
 void Simulation::beginFlightEvents(VehicleId vehicle, Hours takeoff) {
     const Vehicle& v = fleet_[static_cast<std::size_t>(vehicle)];
-    const Hours flightEnds = takeoff + v.type().flightTimeHours();
+    const Hours flightEnds = takeoff + v.type().enduranceHours();
 
     schedule(flightEnds, EventType::FlightComplete, vehicle);
     scheduleNextFault(vehicle, takeoff, flightEnds);
@@ -70,14 +70,14 @@ void Simulation::handleFault(VehicleId vehicle, Hours at) {
 
     // A Poisson process is memoryless, so the next gap is drawn from the
     // moment of this fault exactly as it was from take-off.
-    scheduleNextFault(vehicle, at, v.stateEnteredAt() + v.type().flightTimeHours());
+    scheduleNextFault(vehicle, at, v.stateEnteredAt() + v.type().enduranceHours());
 }
 
 void Simulation::beginCharging(VehicleId vehicle, Hours at) {
     Vehicle& v = fleet_[static_cast<std::size_t>(vehicle)];
 
     v.startCharging(at);
-    schedule(at + v.type().chargeTimeHours(), EventType::ChargeComplete, vehicle);
+    schedule(at + v.type().chargeTimeHours, EventType::ChargeComplete, vehicle);
 
     peakChargersInUse_ = std::max(peakChargersInUse_, chargers_.inUse());
 }

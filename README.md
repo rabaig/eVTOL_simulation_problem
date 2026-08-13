@@ -97,7 +97,7 @@ The reason is that nothing in this system happens at an unpredictable time. When
 
 The pieces:
 
-- `Aircraft` — the spec for one manufacturer's design, plus the derived numbers (endurance, range, drain rate). Immutable.
+- `AircraftSpec` — one manufacturer's design, plus the numbers derived from it (endurance, range, drain rate). A specification, not an aircraft in the air.
 - `Vehicle` — one actual aircraft and its state: flying, queued, or charging.
 - `ChargerPool` — the 3 chargers and the line waiting for them.
 - `FaultModel` — draws the gap to the next fault.
@@ -108,7 +108,7 @@ The pieces:
 
 Only `Simulation` owns a clock. Everything else is told what time it is. Two classes reasoning about time independently is how they end up disagreeing, and every duration in the output depends on them not doing that.
 
-The dependencies only point one way. `Aircraft` has never heard of `Vehicle`; `ChargerPool` has never heard of either, and tracks vehicles as bare integers. That's what let each piece be finished and tested before the one above it existed.
+The dependencies only point one way. `AircraftSpec` has never heard of `Vehicle`; `ChargerPool` has never heard of either, and tracks vehicles as bare integers. That's what let each piece be finished and tested before the one above it existed.
 
 ## Testing
 
@@ -140,11 +140,10 @@ cmake --build build
 
 ./build/bin/evtol_sim              # random seed, printed so you can repeat it
 ./build/bin/evtol_sim --seed 42    # reproducible
-./build/bin/evtol_sim --help       # other options
 ./build/bin/tests                  # the unit tests
 ```
 
-`--hours`, `--vehicles` and `--chargers` are there too, defaulting to the 3, 20 and 3 the problem specifies. Handy for poking at the model — six chargers instead of three changes the picture a lot. The tests don't use them; they build a `SimulationConfig` directly.
+`--seed` is the only option. Fleet size, charger count and duration are fixed at the 20, 3 and 3 hours the problem specifies; tests that need something different build a `SimulationConfig` directly.
 
 Needs CMake 3.16 or newer and a compiler with C++17. No external dependencies, nothing to fetch, no submodules.
 
@@ -167,15 +166,25 @@ eVTOL fleet simulation
   20 vehicles, 3 chargers, 3.00 hours
   seed 42 (re-run with --seed 42)
 
-Company     Vehicles Flights  Avg flight/h  Avg dist/mi  Charges  Avg charge/h  Faults  Passenger-miles
--------------------------------------------------------------------------------------------------------
-Alpha              6       6        1.6667       200.00        1        0.6000       3           5028.0
-Bravo              2       4        0.6667        66.67        2        0.2000       1           1333.3
-Charlie            4       8        0.6250       100.00        4        0.8000       2           2400.0
-Delta              6       6        1.6667       150.00        2        0.6200       1           1909.8
-Echo               2       4        0.8621        25.86        2        0.3000       3            206.9
--------------------------------------------------------------------------------------------------------
-Total             20      28             -            -       11             -      10          10878.0
+Company     Vehicles Flights  Avg flight/h  Avg dist/mi  Charges  Avg charge/h   Queued/h  Faults  Passenger-miles
+------------------------------------------------------------------------------------------------------------------
+Alpha              6       6        1.6667       200.00        1        0.6000       2.31       3           5028.0
+Bravo              2       4        0.6667        66.67        2        0.2000       1.52       1           1333.3
+Charlie            4       8        0.6250       100.00        4        0.8000       0.80       2           2400.0
+Delta              6       6        1.6667       150.00        2        0.6200       1.67       1           1909.8
+Echo               2       4        0.8621        25.86        2        0.3000       1.53       3            206.9
+------------------------------------------------------------------------------------------------------------------
+Total             20      28             -            -       11             -       7.83      10          10878.0
+
+A dash means there was nothing to report: no vehicles of that type, or
+none that finished a flight or a charge before the run ended.
+
+Queued/h is time spent waiting for a charger. It isn't one of the figures the
+problem asks for, but with twenty vehicles and three chargers it is the most
+direct measure of what the shortage costs.
+
+Flights and charges still in progress at 3.00 hours are excluded from the
+averages, but the miles already flown on them are included in passenger-miles.
 ```
 
 Run that command yourself and you'll get this table back. That's the whole reason the seed is printed.
@@ -192,11 +201,13 @@ Alpha carries the passenger-mile total almost single-handedly: 5028 of 10878, ne
 
 Averages are deliberately absent from the total row. An average across types would weigh Alpha's 1h40m flights against Charlie's 37 minutes and mean nothing at all.
 
+`Queued/h` isn't one of the five figures the problem asks for. It's here because with twenty aircraft and three chargers it's the most direct measure of what the shortage actually costs — 7.83 hours of the fleet's time spent waiting, in a three-hour run.
+
 ## TODO
 
 - Faults don't do anything right now beyond incrementing a counter. Splitting them into minor and major, where a major fault forces a landing and pulls the aircraft out of service, would be more realistic.
 - FIFO is fair but it's not the best use of the chargers. Letting Bravo (12 minute charge) cut ahead of Charlie (48 minutes) would almost certainly push total passenger miles up. Would be interesting to simulate both and compare.
 - The aircraft specs are hardcoded. Fleet size, charger count and duration are all command-line options now, but trying a new aircraft design still means a rebuild. A config file would fix that.
 - A single 3 hour run with a random fleet split is noisy — the sample above happened to draw six Alphas, and a different seed tells a noticeably different story. Running a few hundred trials and reporting mean and standard deviation would say far more than any one run does. The code is already set up for it: the run is a pure function of the seed.
-- The eight-parameter `Aircraft` constructor is the sharpest edge in the codebase. Transposing two of the doubles compiles cleanly, and only the specification test would catch it. C++20 designated initializers would make it a compile error.
+- The specification table is still eight positional values per row, so transposing two doubles compiles cleanly and only the specification test would catch it. C++20 designated initializers (`.cruiseSpeedMph = 120.0`) would make it a compile error — now possible, since `AircraftSpec` is an aggregate.
 - Charging is a fixed duration per the problem statement, but real chargers deliver a rate. Modelling kW throughput would let an aircraft top up partway when the line is short.

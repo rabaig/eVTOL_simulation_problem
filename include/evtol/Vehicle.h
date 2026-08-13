@@ -13,8 +13,6 @@ enum class VehicleState {
     Charging
 };
 
-const char* stateName(VehicleState state);
-
 /// One aircraft in the fleet, and what it's doing right now.
 ///
 /// Vehicle is passive. It owns no clock and schedules nothing: every
@@ -22,16 +20,16 @@ const char* stateName(VehicleState state);
 /// having a second class reason about it independently is how the two end up
 /// disagreeing.
 ///
-/// It does keep its own running totals. Flight hours, charge hours and flight
-/// counts are accumulated as transitions happen, which means EVTOL-7 can add
-/// up finished vehicles rather than subscribing to a stream of events.
+/// It does keep its own running totals, accumulated as transitions happen.
+/// That lets the statistics be a fold over finished vehicles rather than
+/// something that has to watch the run happen.
 class Vehicle {
 public:
     /// Vehicles start airborne on a full battery, as the problem specifies.
-    Vehicle(VehicleId id, const Aircraft& type, Hours startTime = 0.0);
+    Vehicle(VehicleId id, const AircraftSpec& type, Hours startTime = 0.0);
 
     VehicleId id() const { return id_; }
-    const Aircraft& type() const { return *type_; }
+    const AircraftSpec& type() const { return *type_; }
     VehicleState state() const { return state_; }
     Hours stateEnteredAt() const { return stateEnteredAt_; }
 
@@ -90,9 +88,9 @@ private:
     VehicleId id_;
 
     // A pointer, not a reference, purely so Vehicle stays assignable and can
-    // live in a vector. The Aircraft it points at is a function-local static
-    // that outlives every vehicle.
-    const Aircraft* type_;
+    // live in a vector. The spec it points at is a function-local static that
+    // outlives every vehicle.
+    const AircraftSpec* type_;
 
     VehicleState state_;
     Hours stateEnteredAt_;

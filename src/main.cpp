@@ -4,125 +4,59 @@
 #include <cstring>
 #include <limits>
 #include <optional>
-#include <string>
 
 #include "evtol/Reporter.h"
 #include "evtol/Simulation.h"
 #include "evtol/Statistics.h"
 
+// Runs the simulation the problem describes: 20 vehicles, 3 chargers, 3 hours.
+//
+// The only option is --seed. An earlier version also took --hours, --vehicles
+// and --chargers, which was seventy-odd lines of argument handling in the
+// first file anyone opens, for flags nothing else in the project used. Tests
+// that need a different fleet or a longer run build a SimulationConfig
+// directly, which is a better way to do it anyway.
+
 namespace {
 
-void printUsage() {
-    std::printf(
-        "eVTOL fleet simulation\n"
-        "\n"
-        "Usage: evtol_sim [options]\n"
-        "\n"
-        "  --seed N        Seed the generator so the run can be reproduced.\n"
-        "                  Without it a seed is drawn from the system and\n"
-        "                  printed, so any result can be repeated.\n"
-        "  --hours H       Length of the run. Defaults to 3, as the problem\n"
-        "                  specifies.\n"
-        "  --vehicles N    Fleet size. Defaults to 20.\n"
-        "  --chargers N    Number of chargers. Defaults to 3.\n"
-        "  --help          This text.\n");
-}
-
-/// Reads the value following an option.
+/// Reads a seed from the command line.
 ///
-/// Returns nothing on a missing or malformed value rather than letting atoi
-/// turn "--hours banana" into zero and running a simulation of nothing.
-std::optional<double> readValue(int argc, char** argv, int& index) {
-    if (index + 1 >= argc) {
-        std::fprintf(stderr, "error: %s needs a value\n", argv[index]);
-        return std::nullopt;
+/// Returns false on anything malformed. Parsed as an integer rather than
+/// through a double: a seed is a uint32_t, and going via floating point means
+/// 1.5 is silently truncated and 5000000000 is an out-of-range conversion,
+/// which is undefined rather than merely wrong.
+bool parseSeed(const char* text, std::uint32_t& seed) {
+    char* end = nullptr;
+    errno = 0;
+
+    const unsigned long long parsed = std::strtoull(text, &end, 10);
+
+    if (end == text || *end != '\0' || errno == ERANGE ||
+        parsed > std::numeric_limits<std::uint32_t>::max()) {
+        return false;
     }
 
-    ++index;
-
-    try {
-        std::size_t consumed = 0;
-        const std::string text = argv[index];
-        const double value = std::stod(text, &consumed);
-
-        if (consumed != text.size()) {
-            std::fprintf(stderr, "error: '%s' is not a number\n", argv[index]);
-            return std::nullopt;
-        }
-
-        return value;
-    } catch (const std::exception&) {
-        std::fprintf(stderr, "error: '%s' is not a number\n", argv[index]);
-        return std::nullopt;
-    }
+    seed = static_cast<std::uint32_t>(parsed);
+    return true;
 }
 
 }  // namespace
 
 int main(int argc, char** argv) {
-    evtol::SimulationConfig config;
     std::optional<std::uint32_t> requestedSeed;
 
-    for (int i = 1; i < argc; ++i) {
-        const char* arg = argv[i];
+    if (argc == 3 && std::strcmp(argv[1], "--seed") == 0) {
+        std::uint32_t seed = 0;
 
-        if (std::strcmp(arg, "--help") == 0) {
-            printUsage();
-            return 0;
-        }
-
-        std::optional<double> value;
-
-        if (std::strcmp(arg, "--seed") == 0) {
-            // Read as an integer, not through readValue. A seed is a
-            // uint32_t, and going via double means --seed 1.5 is silently
-            // truncated and --seed 5000000000 is an out-of-range float to
-            // integer conversion, which is undefined rather than merely
-            // wrong.
-            if (i + 1 >= argc) {
-                std::fprintf(stderr, "error: --seed needs a value\n");
-                return 1;
-            }
-
-            ++i;
-
-            char* end = nullptr;
-            errno = 0;
-            const unsigned long long parsed = std::strtoull(argv[i], &end, 10);
-
-            if (end == argv[i] || *end != '\0' || errno == ERANGE ||
-                parsed > std::numeric_limits<std::uint32_t>::max()) {
-                std::fprintf(stderr,
-                             "error: --seed must be a whole number from 0 to %u\n",
-                             std::numeric_limits<std::uint32_t>::max());
-                return 1;
-            }
-
-            requestedSeed = static_cast<std::uint32_t>(parsed);
-        } else if (std::strcmp(arg, "--hours") == 0) {
-            value = readValue(argc, argv, i);
-            if (!value) return 1;
-            config.duration = *value;
-        } else if (std::strcmp(arg, "--vehicles") == 0) {
-            value = readValue(argc, argv, i);
-            if (!value) return 1;
-            config.fleetSize = static_cast<int>(*value);
-        } else if (std::strcmp(arg, "--chargers") == 0) {
-            value = readValue(argc, argv, i);
-            if (!value) return 1;
-            config.chargerCount = static_cast<std::size_t>(*value);
-        } else {
-            std::fprintf(stderr, "error: unknown option '%s'\n\n", arg);
-            printUsage();
+        if (!parseSeed(argv[2], seed)) {
+            std::fprintf(stderr, "error: --seed must be a whole number from 0 to %u\n",
+                         std::numeric_limits<std::uint32_t>::max());
             return 1;
         }
-    }
 
-    // Checked here rather than left to an assert, because these come from a
-    // user and a Release build would sail straight past the assert.
-    if (config.fleetSize <= 0 || config.chargerCount == 0 || config.duration <= 0.0) {
-        std::fprintf(stderr,
-                     "error: vehicles, chargers and hours must all be above zero\n");
+        requestedSeed = seed;
+    } else if (argc != 1) {
+        std::fprintf(stderr, "usage: evtol_sim [--seed N]\n");
         return 1;
     }
 
@@ -132,6 +66,8 @@ int main(int argc, char** argv) {
     // Captured before the run, because the report prints it and the whole
     // point is that someone can feed it back in with --seed.
     const std::uint32_t seed = rng.seed();
+
+    const evtol::SimulationConfig config;
 
     evtol::Simulation simulation(config, rng);
     simulation.run();
