@@ -13,7 +13,14 @@ Rng Rng::fromEntropy() {
 }
 
 double Rng::uniform01() {
-    return unit_(engine_);
+    // Built per call, as uniformInt does below. An earlier version held this
+    // as a member with a comment about distributions carrying state between
+    // draws — but uniformInt was constructing a fresh one every time anyway,
+    // so the two contradicted each other and only one could be right.
+    // Neither of these distributions is stateful in practice.
+    std::uniform_real_distribution<double> unit(0.0, 1.0);
+
+    return unit(engine_);
 }
 
 int Rng::uniformInt(int lo, int hi) {

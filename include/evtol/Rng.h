@@ -33,11 +33,6 @@ public:
 private:
     std::uint32_t seed_;
     std::mt19937 engine_;
-
-    // Kept as a member instead of built per call. Distributions are allowed
-    // to hold state between draws, and rebuilding one each time would throw
-    // that away.
-    std::uniform_real_distribution<double> unit_{0.0, 1.0};
 };
 
 }  // namespace evtol

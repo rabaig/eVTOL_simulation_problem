@@ -1,6 +1,7 @@
-# Sources are listed rather than globbed. A glob won't re-run when a file is
-# added, so a new test file silently doesn't get built until someone
-# reconfigures and wonders why their test never ran.
+# Sources are listed rather than globbed. file(GLOB CONFIGURE_DEPENDS) would
+# pick up new files correctly on any CMake this project supports, so that is
+# not the reason - an explicit list just makes it obvious what the test binary
+# is built from, and a file that isn't meant to be compiled can't drift in.
 add_executable(tests
     test_main.cpp
     TestHarness.cpp

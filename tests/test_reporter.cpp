@@ -15,6 +15,29 @@ bool contains(const std::string& haystack, const std::string& needle) {
     return haystack.find(needle) != std::string::npos;
 }
 
+/// The single line of the report starting with the given company name.
+///
+/// Assertions about one type's row have to be made against that row. The
+/// report as a whole always contains a horizontal rule of dashes, so
+/// searching all of it for "-" is a check that can never fail.
+std::string rowFor(const std::string& report, const std::string& company) {
+    for (std::size_t start = 0; start < report.size();) {
+        const std::size_t end = report.find('\n', start);
+        const std::string line = report.substr(start, end - start);
+
+        if (line.rfind(company, 0) == 0) {
+            return line;
+        }
+
+        if (end == std::string::npos) {
+            break;
+        }
+        start = end + 1;
+    }
+
+    return {};
+}
+
 struct Run {
     SimulationConfig config;
     std::array<TypeStatistics, kCompanyCount> stats;
@@ -75,8 +98,21 @@ void an_absent_type_prints_a_dash_not_a_zero() {
 
     // A dash reads as "nothing to report". A 0.0000 in an average column
     // reads as a measurement, and would be a lie.
-    CHECK(contains(run.text, "-"));
-    CHECK(!contains(run.text, "0.0000"));
+    //
+    // Checking the whole report for a dash would prove nothing: the table has
+    // a ------- rule above and below it, so that assertion passes whatever
+    // the empty rows contain. It has to be the row for the absent type.
+    for (const TypeStatistics& row : run.stats) {
+        if (row.vehicleCount > 0) {
+            continue;
+        }
+
+        const std::string line = rowFor(run.text, companyName(row.company));
+
+        CHECK(!line.empty());
+        CHECK(contains(line, "-"));
+        CHECK(!contains(line, "0.0000"));
+    }
 }
 
 void the_numbers_in_the_report_match_the_statistics() {

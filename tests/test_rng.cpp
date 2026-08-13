@@ -67,8 +67,9 @@ void uniformInt_can_return_both_ends_of_the_range() {
 void uniformInt_handles_a_range_of_one() {
     Rng rng(7);
 
-    // The fleet split hits this when four types are allocated and whatever
-    // is left has nowhere else to go.
+    // Not reached by the fleet split, which always rolls over the full range
+    // of five types. Here because a degenerate range is the obvious place for
+    // uniform_int_distribution to be misused.
     for (int i = 0; i < 10; ++i) {
         CHECK_EQ(rng.uniformInt(3, 3), 3);
     }

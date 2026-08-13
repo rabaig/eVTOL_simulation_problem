@@ -32,6 +32,15 @@ std::optional<VehicleId> ChargerPool::release(VehicleId vehicle) {
     const auto held = std::find(charging_.begin(), charging_.end(), vehicle);
     assert(held != charging_.end() && "vehicle is not on a charger");
 
+    // The assert says this is a caller bug, but assert compiles away under
+    // NDEBUG and erase(end()) is undefined behaviour, not a no-op. A Release
+    // build would corrupt the pool rather than complain. Cheap to guard, and
+    // returning "nobody took a charger" is the truthful answer when no
+    // charger was actually given up.
+    if (held == charging_.end()) {
+        return std::nullopt;
+    }
+
     charging_.erase(held);
 
     if (queue_.empty()) {
