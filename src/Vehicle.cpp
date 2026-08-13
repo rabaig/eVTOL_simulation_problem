@@ -4,16 +4,6 @@
 
 namespace evtol {
 
-const char* stateName(VehicleState state) {
-    switch (state) {
-        case VehicleState::InFlight: return "InFlight";
-        case VehicleState::Queued:   return "Queued";
-        case VehicleState::Charging: return "Charging";
-    }
-
-    return "Unknown";
-}
-
 bool Vehicle::isLegalTransition(VehicleState from, VehicleState to) {
     switch (from) {
         // Battery runs out, so either a charger was free or the queue is next.
@@ -33,7 +23,7 @@ bool Vehicle::isLegalTransition(VehicleState from, VehicleState to) {
     return false;
 }
 
-Vehicle::Vehicle(VehicleId id, const Aircraft& type, Hours startTime)
+Vehicle::Vehicle(VehicleId id, const AircraftSpec& type, Hours startTime)
     : id_(id),
       type_(&type),
       state_(VehicleState::InFlight),
@@ -104,7 +94,7 @@ double Vehicle::milesFlownInCurrentFlight(Hours now) const {
 
     assert(now >= stateEnteredAt_ && "asked about a time before the flight began");
 
-    return (now - stateEnteredAt_) * type_->cruiseSpeedMph();
+    return (now - stateEnteredAt_) * type_->cruiseSpeedMph;
 }
 
 }  // namespace evtol

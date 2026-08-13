@@ -42,14 +42,15 @@ struct TypeStatistics {
     /// what the charger shortage costs.
     Hours totalQueueHours = 0.0;
 
-    // --- the five the problem asks for ---
+    // --- the three averages the problem asks for ---
+    //
+    // The other two figures it wants, total faults and total passenger
+    // miles, are the plain members above.
 
     std::optional<Hours> averageFlightTime() const;
     std::optional<double> averageDistancePerFlight() const;
     std::optional<Hours> averageChargeTime() const;
 
-    int faults() const { return totalFaults; }
-    double passengerMiles() const { return totalPassengerMiles; }
 };
 
 /// Adds up a finished fleet, grouped by manufacturer.

@@ -40,7 +40,6 @@ public:
     /// to the totals, which is exactly the truncation rule the README states.
     const std::vector<Vehicle>& fleet() const { return fleet_; }
 
-    Hours duration() const { return config_.duration; }
     std::uint64_t eventsProcessed() const { return eventsProcessed_; }
 
     /// Most vehicles seen charging simultaneously.
