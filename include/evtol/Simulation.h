@@ -40,8 +40,6 @@ public:
     /// to the totals, which is exactly the truncation rule the README states.
     const std::vector<Vehicle>& fleet() const { return fleet_; }
 
-    std::uint64_t eventsProcessed() const { return eventsProcessed_; }
-
     /// Most vehicles seen charging simultaneously.
     ///
     /// Tracked so the charger limit can be tested rather than assumed. It is
@@ -54,7 +52,12 @@ private:
     void schedule(Hours at, EventType type, VehicleId vehicle);
 
     /// Schedules the end of a flight and the first fault within it.
-    void beginFlightEvents(VehicleId vehicle, Hours takeoff);
+    ///
+    /// Only schedules - it does not transition the vehicle, which is why
+    /// this is not symmetric with beginCharging below. Callers put the
+    /// vehicle in the air themselves, and run() relies on Vehicle already
+    /// being constructed InFlight.
+    void scheduleFlightEvents(VehicleId vehicle, Hours takeoff);
 
     /// Draws the next fault and schedules it only if it lands before the
     /// battery runs out. A fault that would fall after the flight simply
@@ -76,7 +79,6 @@ private:
 
     Hours clock_ = 0.0;
     std::uint64_t nextSequence_ = 0;
-    std::uint64_t eventsProcessed_ = 0;
     std::size_t peakChargersInUse_ = 0;
     bool hasRun_ = false;
 };

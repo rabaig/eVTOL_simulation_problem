@@ -28,6 +28,7 @@
 #include <cstdio>
 #include <limits>
 #include <queue>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -417,7 +418,8 @@ void faults_scale_with_flight_hours_not_wall_clock() {
 
     // If the fleet were airborne nearly all the time this test would prove
     // very little, so assert that it isn't.
-    CHECK(flightHours < run.config.duration * run.fleet.size() * 0.85);
+    CHECK(flightHours <
+          run.config.duration * static_cast<double>(run.fleet.size()) * 0.85);
 }
 
 // ---------------------------------------------------------------------------
@@ -445,13 +447,54 @@ void simultaneous_events_come_out_in_the_order_they_were_scheduled() {
         queue.push(Event{1.0, EventType::ChargeComplete, static_cast<VehicleId>(i), i});
     }
 
-    for (std::uint64_t want : {1, 2, 3, 4, 5, 6, 0}) {
+    for (std::uint64_t want : {1u, 2u, 3u, 4u, 5u, 6u, 0u}) {
         CHECK(!queue.empty());
         CHECK_EQ(queue.top().sequence, want);
         queue.pop();
     }
 
     CHECK(queue.empty());
+}
+
+void misuse_is_rejected_in_every_build() {
+    // These preconditions used to be asserts, which compile away under NDEBUG
+    // - and Release is the default build. Each one produced a plausible
+    // looking table rather than stopping: a negative duration gave negative
+    // passenger miles, no chargers reported a run where nobody ever charged,
+    // and calling run() twice corrupted most of the fleet's totals.
+    //
+    // Throwing means the tests can check them, which asserts never allowed.
+    auto throws = [](auto fn) {
+        try {
+            fn();
+        } catch (const std::exception&) {
+            return true;
+        }
+        return false;
+    };
+
+    CHECK(throws([] { ChargerPool pool(0); }));
+
+    CHECK(throws([] {
+        SimulationConfig config;
+        config.duration = -1.0;
+        Rng rng(1);
+        Simulation sim(config, rng);
+    }));
+
+    CHECK(throws([] {
+        SimulationConfig config;
+        config.fleetSize = 0;
+        Rng rng(1);
+        Simulation sim(config, rng);
+    }));
+
+    CHECK(throws([] {
+        Rng rng(1);
+        Simulation sim(SimulationConfig{}, rng);
+        sim.run();
+        sim.run();
+    }));
 }
 
 void the_fleet_always_totals_twenty() {
@@ -752,6 +795,7 @@ int main() {
     RUN(faults_scale_with_flight_hours_not_wall_clock);
 
     RUN(simultaneous_events_come_out_in_the_order_they_were_scheduled);
+    RUN(misuse_is_rejected_in_every_build);
     RUN(the_fleet_always_totals_twenty);
     RUN(every_hour_of_every_vehicle_is_accounted_for);
     RUN(contention_appears_only_when_the_fleet_outnumbers_the_chargers);

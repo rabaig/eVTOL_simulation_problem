@@ -56,8 +56,6 @@ struct AircraftSpec {
     /// How far it gets on that battery.
     double rangeMiles() const { return enduranceHours() * cruiseSpeedMph; }
 
-    /// Range times seats: the problem's passenger-miles figure for one flight.
-    double passengerMilesPerFlight() const { return rangeMiles() * passengerCount; }
 };
 
 /// The five specifications, in Company order.

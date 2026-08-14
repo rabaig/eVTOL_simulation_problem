@@ -2,13 +2,23 @@
 
 #include <algorithm>
 #include <cassert>
+#include <stdexcept>
 
 namespace evtol {
 
 Simulation::Simulation(const SimulationConfig& config, Rng& rng)
     : config_(config), chargers_(config.chargerCount), faultModel_(rng) {
-    assert(config.fleetSize > 0);
-    assert(config.duration > 0.0);
+    // Thrown, not asserted. An assert vanishes under NDEBUG, and Release is
+    // the default build - a negative duration would then run quietly and
+    // report negative passenger miles rather than stopping. Same standard as
+    // ChargerPool::release: a precondition on public API gets a real check.
+    if (config.fleetSize <= 0) {
+        throw std::invalid_argument("fleetSize must be at least 1");
+    }
+
+    if (config.duration <= 0.0) {
+        throw std::invalid_argument("duration must be above zero");
+    }
 
     buildFleet(rng);
 }
@@ -52,7 +62,7 @@ void Simulation::scheduleNextFault(VehicleId vehicle, Hours from, Hours flightEn
     }
 }
 
-void Simulation::beginFlightEvents(VehicleId vehicle, Hours takeoff) {
+void Simulation::scheduleFlightEvents(VehicleId vehicle, Hours takeoff) {
     const Vehicle& v = fleet_[static_cast<std::size_t>(vehicle)];
     const Hours flightEnds = takeoff + v.type().enduranceHours();
 
@@ -100,7 +110,7 @@ void Simulation::handleChargeComplete(VehicleId vehicle, Hours at) {
     const auto next = chargers_.release(vehicle);
 
     fleet_[static_cast<std::size_t>(vehicle)].startFlight(at);
-    beginFlightEvents(vehicle, at);
+    scheduleFlightEvents(vehicle, at);
 
     if (next.has_value()) {
         beginCharging(*next, at);
@@ -108,12 +118,22 @@ void Simulation::handleChargeComplete(VehicleId vehicle, Hours at) {
 }
 
 void Simulation::run() {
-    assert(!hasRun_ && "run() is not re-entrant; build another Simulation");
+    // Also thrown rather than asserted. Running twice re-seeds every flight
+    // at t=0 while the clock is already at the end, so durations come out
+    // negative and most of the fleet ends up with corrupted totals - a
+    // plausible-looking table that is simply wrong.
+    if (hasRun_) {
+        throw std::logic_error("run() has already been called on this Simulation");
+    }
+
     hasRun_ = true;
 
-    // Everyone starts airborne on a full battery.
+    // Everyone starts airborne on a full battery. Take the time from the
+    // vehicle rather than repeating the 0.0 that buildFleet() passed to the
+    // constructor - two copies of one fact, and if they disagreed the fault
+    // window and the flight would be bounded differently.
     for (const Vehicle& v : fleet_) {
-        beginFlightEvents(v.id(), 0.0);
+        scheduleFlightEvents(v.id(), v.stateEnteredAt());
     }
 
     while (!pending_.empty()) {
@@ -132,7 +152,6 @@ void Simulation::run() {
         // negative, and the totals would be quietly wrong rather than absent.
         assert(event.time >= clock_ && "event queue produced an out-of-order time");
         clock_ = event.time;
-        ++eventsProcessed_;
 
         switch (event.type) {
             case EventType::FlightComplete:
@@ -150,8 +169,6 @@ void Simulation::run() {
 
         assert(chargers_.inUse() <= chargers_.capacity());
     }
-
-    clock_ = config_.duration;
 }
 
 }  // namespace evtol
