@@ -51,7 +51,10 @@ std::array<TypeStatistics, kCompanyCount> collectStatistics(
 
         row.totalFlightHours += vehicle.totalFlightHours();
         row.totalChargeHours += vehicle.totalChargeHours();
-        row.totalQueueHours += vehicle.totalQueueHours();
+        // Finished waits plus the one still running. See the note on the
+        // field: this is a total, not the input to an average.
+        row.totalQueueHours += vehicle.totalQueueHours() +
+                               vehicle.hoursWaitingInCurrentQueue(endOfRun);
 
         // Every flight runs the battery flat, so distance is simply the hours
         // flown at cruise speed. No integration required.

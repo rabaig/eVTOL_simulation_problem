@@ -87,6 +87,16 @@ void Vehicle::recordFault() {
     ++faults_;
 }
 
+Hours Vehicle::hoursWaitingInCurrentQueue(Hours now) const {
+    if (state_ != VehicleState::Queued) {
+        return 0.0;
+    }
+
+    assert(now >= stateEnteredAt_ && "asked about a time before the wait began");
+
+    return now - stateEnteredAt_;
+}
+
 double Vehicle::milesFlownInCurrentFlight(Hours now) const {
     if (state_ != VehicleState::InFlight) {
         return 0.0;

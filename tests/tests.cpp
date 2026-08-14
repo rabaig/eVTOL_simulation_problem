@@ -620,6 +620,40 @@ void passenger_miles_reproduce_the_worked_example() {
     CHECK_NEAR(*row.averageDistancePerFlight(), 100.0, kTolerance);
 }
 
+void queue_hours_include_waits_still_in_progress() {
+    // Queue hours are a total with no average attached, so unlike flights and
+    // charges a wait still running at the end belongs in the figure. At three
+    // hours most of the fleet is queued, so excluding them would report a
+    // fraction of the real wait - which is what this originally did.
+    const Run run = simulate(42);
+
+    Hours finished = 0.0;
+    Hours stillWaiting = 0.0;
+    int queuedAtEnd = 0;
+
+    for (const Vehicle& v : run.fleet) {
+        finished += v.totalQueueHours();
+        stillWaiting += v.hoursWaitingInCurrentQueue(run.config.duration);
+
+        if (v.state() == VehicleState::Queued) {
+            ++queuedAtEnd;
+        }
+    }
+
+    Hours reported = 0.0;
+    for (const TypeStatistics& row : run.stats) {
+        reported += row.totalQueueHours;
+    }
+
+    CHECK_NEAR(reported, finished + stillWaiting, kTolerance);
+
+    // The in-progress part has to be a serious share of the answer, or this
+    // test proves very little. Measured across seeds it runs 40-56% of the
+    // total; a quarter is a floor that holds without pinning one fleet.
+    CHECK(queuedAtEnd > 0);
+    CHECK(stillWaiting > 0.25 * (finished + stillWaiting));
+}
+
 void per_type_totals_sum_to_the_fleet_totals() {
     const Run run = simulate(2718);
 
@@ -727,6 +761,7 @@ int main() {
     RUN(an_absent_type_reports_nothing_rather_than_zero);
     RUN(a_flight_in_the_air_is_excluded_from_averages_but_not_from_miles);
     RUN(passenger_miles_reproduce_the_worked_example);
+    RUN(queue_hours_include_waits_still_in_progress);
     RUN(per_type_totals_sum_to_the_fleet_totals);
 
     RUN(an_absent_type_prints_a_dash_not_a_zero);

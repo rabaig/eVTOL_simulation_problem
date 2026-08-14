@@ -75,6 +75,14 @@ public:
 
     int faults() const { return faults_; }
 
+    /// Time spent so far in a wait that hasn't ended.
+    ///
+    /// Zero unless queued. Queue hours are reported as a total with no
+    /// average attached, so unlike flights and charges an unfinished wait
+    /// still belongs in the figure - the vehicle really did spend that time
+    /// on the ground waiting.
+    Hours hoursWaitingInCurrentQueue(Hours now) const;
+
     /// Miles covered so far by a flight that hasn't finished.
     ///
     /// Zero unless airborne. Those miles were genuinely flown, so they count
