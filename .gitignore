@@ -13,7 +13,7 @@ CMakeLists.txt.user*
 # Editors / OS
 .vscode/
 .idea/
+.vs/
+out/
+.cache/
 .DS_Store
-
-# Cowork session artifact
-attachments.html

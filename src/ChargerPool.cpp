@@ -2,12 +2,18 @@
 
 #include <algorithm>
 #include <cassert>
+#include <stdexcept>
 
 namespace evtol {
 
 ChargerPool::ChargerPool(std::size_t chargerCount)
     : capacity_(chargerCount) {
-    assert(chargerCount > 0 && "a pool with no chargers would deadlock the fleet");
+    // A pool with no chargers deadlocks the fleet. In Release the assert
+    // vanished and the run reported every flight completing and nobody ever
+    // charging, which looks like a result.
+    if (chargerCount == 0) {
+        throw std::invalid_argument("a charger pool needs at least one charger");
+    }
 
     charging_.reserve(chargerCount);
 }

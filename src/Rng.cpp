@@ -29,8 +29,11 @@ double Rng::uniform01() {
     //
     // This is the standard 53-bit construction: 27 bits from one draw and 26
     // from the next, giving a uniform multiple of 2^-53 in [0, 1).
-    const std::uint64_t high = engine_() >> 5;  // 27 bits
-    const std::uint64_t low = engine_() >> 6;   // 26 bits
+    // Casts are explicit because 53 bits is exactly what a double holds, and
+    // it is worth being visible that the arithmetic is at the limit rather
+    // than comfortably inside it.
+    const double high = static_cast<double>(engine_() >> 5);  // 27 bits
+    const double low = static_cast<double>(engine_() >> 6);   // 26 bits
 
     return (high * 67108864.0 + low) / 9007199254740992.0;  // 2^26, 2^53
 }

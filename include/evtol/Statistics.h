@@ -27,7 +27,10 @@ struct TypeStatistics {
     int completedCharges = 0;
     int totalFaults = 0;
 
-    /// Miles from completed flights only. Feeds the distance average.
+    /// Miles from completed flights only, ignoring seats. This is what the
+    /// distance average divides; it is deliberately not passenger miles,
+    /// which differ on two counts - they include a flight still in the air,
+    /// and they are multiplied by seats.
     double completedFlightMiles = 0.0;
 
     /// Miles flown times seats, including flights still in the air when the

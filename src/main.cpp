@@ -1,4 +1,5 @@
 #include <cerrno>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -55,6 +56,10 @@ int main(int argc, char** argv) {
         }
 
         requestedSeed = seed;
+    } else if (argc == 2 && std::strcmp(argv[1], "--help") == 0) {
+        // Asking for help is not an error, so it goes to stdout and exits 0.
+        std::printf("usage: evtol_sim [--seed N]\n");
+        return 0;
     } else if (argc != 1) {
         std::fprintf(stderr, "usage: evtol_sim [--seed N]\n");
         return 1;
