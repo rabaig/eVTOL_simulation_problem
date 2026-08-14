@@ -79,6 +79,8 @@ The rest I decided on:
 
 The `1 - u` rather than `u` matters: `u` can come back as exactly zero, and `ln(0)` is negative infinity.
 
+**The table's figure is used as the rate, not as a per-hour probability.** Worth stating because they aren't the same number. With λ = 0.61, Echo averages 0.61 faults per airborne hour — which puts the chance of *at least one* fault in a given hour at 1 − e^−0.61 = 0.457. Reading the table as that probability instead would mean λ = −ln(1 − p) = 0.94, and about a third more Echo faults. I went with the rate, because "per hour" alongside a continuous process reads as a rate and because a probability can't exceed 1 while these figures are clearly meant to scale. It's the kind of thing worth one question to the customer rather than a paragraph of guessing.
+
 **Faults only happen in flight.** An aircraft sitting on a charger isn't flying, so it isn't accumulating risk. If faults ticked over during all wall clock time instead, every type would end up with roughly the same count regardless of how much it actually flew, which would make the statistic useless.
 
 **A fault gets counted but the aircraft keeps going.** The problem only asks for a count. Grounding an aircraft would mean deciding what kinds of failure exist and how bad each one is, and none of that was specified. Left as a TODO.
@@ -191,7 +193,9 @@ To get the same numbers every time, give it a seed:
 ./build/bin/evtol_sim --seed 42
 ```
 
-That reproduces the sample run in this README exactly. Every run prints the seed it used — including the random ones — so any result you find interesting can be repeated.
+That reproduces the sample run in this README exactly, on any platform. Every run prints the seed it used — including the random ones — so any result you find interesting can be repeated.
+
+"On any platform" took some care. `std::uniform_int_distribution` and `uniform_real_distribution` have implementation-defined algorithms — the standard pins the engine, not the distributions — so the same seed gives a different fleet on macOS than on Linux. `Rng` builds its draws by hand instead, and CI diffs the seed-42 output against a committed golden file on both Linux and macOS, which is the only thing that would catch it regressing.
 
 `--seed` is the only option. Fleet size, charger count and duration are fixed at what the problem specifies; the tests build a `SimulationConfig` directly when they need something different.
 
@@ -250,13 +254,13 @@ eVTOL fleet simulation
 
 Company     Vehicles Flights  Avg flight/h  Avg dist/mi  Charges  Avg charge/h   Queued/h  Faults  Passenger-miles
 ------------------------------------------------------------------------------------------------------------------
-Alpha              6       6        1.6667       200.00        1        0.6000       2.31       3           5028.0
-Bravo              2       4        0.6667        66.67        2        0.2000       1.52       1           1333.3
-Charlie            4       8        0.6250       100.00        4        0.8000       0.80       2           2400.0
-Delta              6       6        1.6667       150.00        2        0.6200       1.67       1           1909.8
-Echo               2       4        0.8621        25.86        2        0.3000       1.53       3            206.9
+Alpha              6       6        1.6667       200.00        1        0.6000       6.07       5           4884.0
+Bravo              4       8        0.6667        66.67        4        0.2000       5.87       1           2666.7
+Charlie            4       8        0.6250       100.00        4        0.8000       3.80       1           2400.0
+Delta              2       2        1.6667       150.00        0             -       2.49       1            600.0
+Echo               4       6        0.8621        25.86        4        0.3000       4.48       5            379.3
 ------------------------------------------------------------------------------------------------------------------
-Total             20      28             -            -       11             -       7.83      10          10878.0
+Total             20      30             -            -       13             -      22.71      13          10930.0
 
 A dash means there was nothing to report: no vehicles of that type, or
 none that finished a flight or a charge before the run ended.
@@ -271,7 +275,7 @@ averages, but the miles already flown on them are included in passenger-miles.
 
 Run that command yourself and you'll get this table back. That's the whole reason the seed is printed.
 
-Three things to read out of it. The averages are exact rather than approximate — Alpha's 1.6667 hours and 200.00 miles are precisely its endurance and range, because every completed flight of a type is identical. Only 11 charges finished across 28 flights, the rest of the fleet still queued or charging when the clock stopped. And `Queued/h` totals 7.83 hours of waiting inside a three-hour run, which is the clearest measure of what three chargers for twenty aircraft actually costs.
+Three things to read out of it. The averages are exact rather than approximate — Alpha's 1.6667 hours and 200.00 miles are precisely its endurance and range, because every completed flight of a type is identical. Only 13 charges finished across 30 flights, the rest of the fleet still queued or charging when the clock stopped. And `Queued/h` totals 22.71 hours of waiting inside a three-hour run — more than seven times the length of the run itself, spread across twenty aircraft. That is what three chargers costs.
 
 The total row carries no averages on purpose: one across types would weigh Alpha's 1h40m flights against Charlie's 37 minutes and mean nothing.
 

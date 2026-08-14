@@ -37,3 +37,12 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build --output-on-failure
+
+      # The unit tests can only compare two runs inside one binary, so they
+      # pass on any platform whatever the numbers are. This is what actually
+      # checks that a seed means the same thing everywhere - it is why the
+      # generator draws its own numbers instead of using
+      # std::uniform_*_distribution, whose algorithms the standard leaves
+      # unspecified.
+      - name: Same seed, same output, on every platform
+        run: ./build/bin/evtol_sim --seed 42 | diff -u tests/golden/seed42.txt -

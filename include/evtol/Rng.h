@@ -14,6 +14,10 @@ namespace evtol {
 ///
 /// The seed is the point. Same seed in, same run out, so a result worth
 /// showing someone can be reproduced instead of described.
+///
+/// The draws are built by hand rather than with std::uniform_*_distribution,
+/// whose algorithms the standard leaves unspecified. See Rng.cpp - without
+/// that, the same seed gives different answers on macOS than on Linux.
 class Rng {
 public:
     explicit Rng(std::uint32_t seed);

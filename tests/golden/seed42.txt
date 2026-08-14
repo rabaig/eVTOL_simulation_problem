@@ -1,0 +1,23 @@
+eVTOL fleet simulation
+  20 vehicles, 3 chargers, 3.00 hours
+  seed 42 (re-run with --seed 42)
+
+Company     Vehicles Flights  Avg flight/h  Avg dist/mi  Charges  Avg charge/h   Queued/h  Faults  Passenger-miles
+------------------------------------------------------------------------------------------------------------------
+Alpha              6       6        1.6667       200.00        1        0.6000       6.07       5           4884.0
+Bravo              4       8        0.6667        66.67        4        0.2000       5.87       1           2666.7
+Charlie            4       8        0.6250       100.00        4        0.8000       3.80       1           2400.0
+Delta              2       2        1.6667       150.00        0             -       2.49       1            600.0
+Echo               4       6        0.8621        25.86        4        0.3000       4.48       5            379.3
+------------------------------------------------------------------------------------------------------------------
+Total             20      30             -            -       13             -      22.71      13          10930.0
+
+A dash means there was nothing to report: no vehicles of that type, or
+none that finished a flight or a charge before the run ended.
+
+Queued/h is time spent waiting for a charger. It isn't one of the figures the
+problem asks for, but with twenty vehicles and three chargers it is the most
+direct measure of what the shortage costs.
+
+Flights and charges still in progress at 3.00 hours are excluded from the
+averages, but the miles already flown on them are included in passenger-miles.

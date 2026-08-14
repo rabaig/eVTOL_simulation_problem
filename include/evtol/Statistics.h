@@ -40,6 +40,13 @@ struct TypeStatistics {
 
     /// Not one of the five required figures, but the most direct measure of
     /// what the charger shortage costs.
+    ///
+    /// Unlike the flight and charge hours above, this includes waits still
+    /// in progress when the clock stops. Those two feed averages, where a
+    /// truncated period would drag the figure below what the aircraft can
+    /// actually do; this is a plain total, and at three hours most of the
+    /// fleet is still queued - excluding them would report a fraction of
+    /// the real wait. Same reasoning as passenger miles below.
     Hours totalQueueHours = 0.0;
 
     // --- the three averages the problem asks for ---

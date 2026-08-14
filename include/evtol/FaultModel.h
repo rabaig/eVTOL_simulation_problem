@@ -23,6 +23,18 @@ namespace evtol {
 /// Note the 1 - u rather than u. uniform01() can return exactly zero, and
 /// ln(0) is negative infinity; 1 - u lands in (0, 1] instead, where the
 /// logarithm is always finite.
+///
+/// Calibration is a judgement call worth naming. The table's figure is used
+/// directly as lambda, so 0.61 for Echo means 0.61 faults per airborne hour
+/// on average - which puts the chance of at least one fault in a given hour
+/// at 1 - e^-0.61 = 0.457, not 0.61. Reading the table as that probability
+/// instead would mean lambda = -ln(1 - p) = 0.94, and about a third more
+/// Echo faults.
+///
+/// Rate was chosen because 'per hour' alongside a continuous process reads
+/// as a rate, and because a probability cannot exceed 1 while these figures
+/// are clearly meant to scale. It is the kind of thing worth one question
+/// to the customer rather than one paragraph of guessing.
 class FaultModel {
 public:
     explicit FaultModel(Rng& rng) : rng_(&rng) {}
